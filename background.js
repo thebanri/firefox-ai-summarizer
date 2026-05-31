@@ -1,0 +1,330 @@
+// Set up context menus when the extension is installed
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: "summarize-page",
+    title: "Bu Sayfayı AI ile Özetle",
+    contexts: ["page", "selection"]
+  });
+
+  chrome.contextMenus.create({
+    id: "summarize-link",
+    title: "Bu Bağlantıyı AI ile Özetle",
+    contexts: ["link"]
+  });
+});
+
+// Listen for context menu clicks
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (!tab || !tab.id) return;
+
+  if (info.menuItemId === "summarize-page") {
+    // Tell content script to summarize the active page
+    chrome.tabs.sendMessage(tab.id, { action: "summarize_page" });
+  } else if (info.menuItemId === "summarize-link") {
+    // Tell content script to open overlay in loading state for the link
+    chrome.tabs.sendMessage(tab.id, { 
+      action: "summarize_link_start", 
+      url: info.linkUrl 
+    });
+
+    // Start fetching and summarizing the link content
+    summarizeLink(info.linkUrl, tab.id);
+  }
+});
+
+// Listen for messages from popup or content scripts
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "summarize_current_page_text") {
+    // Content script has extracted page text and requested summary
+    requestSummary(request.text, request.title)
+      .then(summary => {
+        sendResponse({ success: true, summary });
+      })
+      .catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Keep message channel open for async response
+  }
+  
+  if (request.action === "open_options") {
+    chrome.runtime.openOptionsPage();
+  }
+});
+
+// Fetch and summarize a target link
+async function summarizeLink(url, tabId) {
+  try {
+    // 1. Fetch HTML from URL
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Bağlantı yüklenemedi: ${response.status} ${response.statusText}`);
+    }
+    const html = await response.text();
+
+    // 2. Extract title & clean text content
+    const pageData = cleanHtml(html);
+
+    if (!pageData.text || pageData.text.length < 100) {
+      throw new Error("Bağlantıdan yeterli metin içeriği ayıklanamadı. Sayfa boş veya Javascript gerektiriyor olabilir.");
+    }
+
+    // 3. Summarize using general requestSummary
+    const summary = await requestSummary(pageData.text, pageData.title);
+
+    // 4. Send summary to content script
+    chrome.tabs.sendMessage(tabId, { 
+      action: "summarize_link_success", 
+      summary: summary,
+      title: pageData.title,
+      url: url
+    });
+
+  } catch (error) {
+    chrome.tabs.sendMessage(tabId, { 
+      action: "summarize_link_error", 
+      error: error.message 
+    });
+  }
+}
+
+// Helper to clean HTML and extract Title & clean text
+function cleanHtml(html) {
+  let title = "Bağlantı";
+  let text = "";
+
+  try {
+    // Use DOMParser if available (Firefox background page supports it)
+    if (typeof DOMParser !== 'undefined') {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Extract title
+      if (doc.title) {
+        title = doc.title.trim();
+      } else {
+        const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        if (titleMatch && titleMatch[1]) {
+          title = titleMatch[1].trim();
+        }
+      }
+
+      // Remove scripts, styles, navs, footers, headers, and svgs
+      const elementsToRemove = doc.querySelectorAll('script, style, svg, nav, footer, header, iframe, noscript, button, link, meta');
+      elementsToRemove.forEach(el => el.remove());
+
+      // Get body text
+      text = doc.body.innerText || doc.body.textContent || "";
+    } else {
+      throw new Error("DOMParser is not defined");
+    }
+  } catch (e) {
+    console.warn("DOMParser failed or not available, using regex fallback:", e);
+    
+    // Fallback: Extract title via regex
+    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (titleMatch && titleMatch[1]) {
+      title = titleMatch[1].trim();
+    }
+
+    // Basic HTML text cleaning (stripping scripts, styles, tags)
+    text = html;
+    
+    // Strip head, scripts, styles, SVG, nav, footer, header
+    text = text.replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '');
+    text = text.replace(/<(script|style|svg|header|footer|nav|noscript)[^>]*>([\s\S]*?)<\/\1>/gi, '');
+    
+    // Strip remaining HTML tags
+    text = text.replace(/<[^>]+>/g, ' ');
+  }
+
+  // Clean whitespace and HTML entities
+  text = text.replace(/\s+/g, ' ').trim();
+  text = text.replace(/&amp;/g, '&')
+             .replace(/&lt;/g, '<')
+             .replace(/&gt;/g, '>')
+             .replace(/&quot;/g, '"')
+             .replace(/&#039;/g, "'")
+             .replace(/&nbsp;/g, ' ');
+
+  // Limit characters to avoid hitting API prompt limit
+  text = text.slice(0, 50000);
+
+  return { title, text };
+}
+
+// Request summary from Gemini or Groq depending on provider settings
+async function requestSummary(text, pageTitle) {
+  // Get API key and options from local storage
+  const settings = await chrome.storage.local.get({
+    provider: "gemini",
+    geminiApiKey: "",
+    apiKey: "", // legacy fallback
+    groqApiKey: "",
+    groqModel: "llama-3.3-70b-versatile",
+    language: "Turkish",
+    detailLevel: "detailed"
+  });
+
+  const provider = settings.provider || "gemini";
+  const prompt = buildPrompt(settings.language, settings.detailLevel, pageTitle);
+
+  if (provider === "gemini") {
+    const key = settings.geminiApiKey || settings.apiKey;
+    if (!key) {
+      throw new Error("API_KEY_MISSING");
+    }
+    return requestSummaryFromGemini(text, prompt, key);
+  } else if (provider === "groq") {
+    if (!settings.groqApiKey) {
+      throw new Error("API_KEY_MISSING");
+    }
+    return requestSummaryFromGroq(text, prompt, settings.groqApiKey, settings.groqModel);
+  } else {
+    throw new Error(`Bilinmeyen sağlayıcı: ${provider}`);
+  }
+}
+
+// Request summary from Gemini API
+async function requestSummaryFromGemini(text, prompt, apiKey) {
+  const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+  const response = await fetch(apiEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            {
+              text: `${prompt}\n\nİçerik:\n${text}`
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 8192
+      },
+      safetySettings: [
+        {
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_HATE_SPEECH",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_NONE"
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const apiError = errorData.error?.message || response.statusText;
+    throw new Error(`Gemini API Hatası: ${apiError}`);
+  }
+
+  const data = await response.json();
+  const candidate = data.candidates?.[0];
+  let summaryText = candidate?.content?.parts?.[0]?.text;
+
+  if (!summaryText) {
+    const finishReason = candidate?.finishReason;
+    if (finishReason) {
+      throw new Error(`Yapay zeka yanıt üretemedi. Durma Nedeni: ${finishReason}`);
+    }
+    throw new Error("Yapay zekadan boş yanıt döndü.");
+  }
+
+  // Check if response was truncated
+  const finishReason = candidate?.finishReason;
+  if (finishReason && finishReason !== "STOP") {
+    summaryText += `\n\n*(Not: Özet oluşturma işlemi yarıda kesildi. Neden: ${finishReason})*`;
+  }
+
+  return summaryText;
+}
+
+// Request summary from Groq API
+async function requestSummaryFromGroq(text, prompt, apiKey, model) {
+  const apiEndpoint = "https://api.groq.com/openai/v1/chat/completions";
+
+  const response = await fetch(apiEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        {
+          role: "system",
+          content: prompt
+        },
+        {
+          role: "user",
+          content: `Lütfen aşağıdaki web sayfası içeriğini özetle:\n\n${text}`
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 4096
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const apiError = errorData.error?.message || response.statusText;
+    throw new Error(`Groq API Hatası: ${apiError}`);
+  }
+
+  const data = await response.json();
+  let summaryText = data.choices?.[0]?.message?.content;
+
+  if (!summaryText) {
+    throw new Error("Groq API'den boş yanıt döndü.");
+  }
+
+  // Check if response was truncated
+  const finishReason = data.choices?.[0]?.finish_reason;
+  if (finishReason && finishReason === "length") {
+    summaryText += `\n\n*(Not: Özet oluşturma işlemi yarıda kesildi. Neden: Maksimum uzunluğa ulaşıldı)*`;
+  }
+
+  return summaryText;
+}
+
+// Build prompt based on settings
+function buildPrompt(language, detailLevel, pageTitle) {
+  let detailInstruction = "";
+  if (detailLevel === "quick") {
+    detailInstruction = "Çok kısa ve öz olmalıdır. En temel fikri açıklayan en fazla 2-3 kısa cümlelik tek bir paragraf yaz. Kesinlikle uzatma.";
+  } else if (detailLevel === "bullets") {
+    detailInstruction = "Sadece en kritik 4-5 maddeyi içeren kısa bir liste yap. Her bir madde en fazla 10-15 kelimeden oluşmalı ve kısa açıklamalı olmalıdır.";
+  } else {
+    // Detailed level: Comprehensive, bulleted, emphasizing, and easy to learn.
+    detailInstruction = "İçerikteki tüm önemli teknik detayları, karşılaştırmaları ve temel kavramları kapsayan, kolay öğrenilebilir ve akılda kalıcı bir özet çıkar. Düz paragraflar yazmak yerine bilgileri konu başlıkları altında maddeler halinde grupla. Şu yapıya uy:\n\n" +
+      "1. Kısa bir giriş cümlesi.\n" +
+      "2. Gruplanmış ana maddeler (Örn: **[Konu Başlığı]** altında `- **[Kritik Kavram]:** [Kolay anlaşılır, vurgulayıcı ve akılda kalıcı açıklama cümlesi]`).\n" +
+      "3. Varsa kavramların karşılaştırmaları (Örn: HTTP vs HTTPS farkları, portlar, SSL/TLS vb.) net maddeler halinde listelenmelidir.\n" +
+      "4. Sonuç olarak konunun önemini vurgulayan 1-2 cümlelik kısa bir kapanış.";
+  }
+
+  return `Sen profesyonel bir web sayfası özetleme asistanısın. Görevin, sana verilen web sayfası içeriğini analiz etmek ve aşağıdaki kurallara göre özetlemektir:
+1. Özeti tamamen "${language}" dilinde yaz.
+2. Sayfa başlığı: "${pageTitle}".
+3. ${detailInstruction}
+4. Markdown biçimlendirmesini (kalın kelimeler, listeler, alt başlıklar) kullanarak temiz, şık ve okunabilirliği çok yüksek bir çıktı üret.
+5. Gereksiz girişler (örn. "İşte özetiniz:", "Makale şunları anlatıyor:") yazmadan doğrudan özetle başla.
+6. Reklamları ve ilgisiz metinleri göz ardı et, tamamen teknik doğruluğa ve önemli detaylara odaklan.`;
+}

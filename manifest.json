@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "Zen AI Summarizer",
+  "version": "1.0.0",
+  "description": "Yapay zeka ile herhangi bir web sayfasını veya bağlantıyı anında özetleyin.",
+  "permissions": [
+    "contextMenus",
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "all_frames": false
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "16": "icon.svg",
+      "32": "icon.svg",
+      "48": "icon.svg",
+      "128": "icon.svg"
+    },
+    "default_popup": "popup.html",
+    "default_title": "Zen AI Summarizer"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "icon.svg",
+    "32": "icon.svg",
+    "48": "icon.svg",
+    "128": "icon.svg"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "zen-ai-summarizer@antigravity.ai",
+      "strict_min_version": "109.0"
+    }
+  }
+}

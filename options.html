@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zen AI Summarizer - Ayarlar</title>
+  <style>
+    :root {
+      --bg: #09090b;
+      --card-bg: rgba(20, 20, 25, 0.6);
+      --border: rgba(255, 255, 255, 0.08);
+      --primary: #8b5cf6;
+      --primary-hover: #7c3aed;
+      --primary-glow: rgba(139, 92, 246, 0.15);
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --success: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.08) 0%, transparent 40%);
+      background-attachment: fixed;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 500px;
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .logo {
+      width: 36px;
+      height: 36px;
+    }
+
+    .title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: -24px;
+      margin-bottom: 28px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    input[type="password"],
+    input[type="text"],
+    select {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-family: inherit;
+      color: var(--text);
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    .password-toggle {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .password-toggle:hover {
+      color: var(--text);
+    }
+
+    .help-text {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    .help-text a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    .help-text a:hover {
+      text-decoration: underline;
+    }
+
+    .btn-save {
+      width: 100%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 32px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px var(--primary-glow);
+    }
+
+    .btn-save:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px var(--primary-glow);
+    }
+
+    .btn-save:active {
+      transform: translateY(0);
+    }
+
+    .status-msg {
+      margin-top: 16px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .status-success {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      color: var(--success);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="icon.svg" class="logo" alt="Logo">
+      <h1 class="title">Zen AI Summarizer</h1>
+    </div>
+    <div class="subtitle">Eklenti ve Yapay Zeka Tercihlerinizi Özelleştirin</div>
+
+    <form id="settings-form">
+      <div class="form-group">
+        <label for="provider">Yapay Zeka Sağlayıcısı</label>
+        <select id="provider">
+          <option value="gemini">Google Gemini</option>
+          <option value="groq">Groq Cloud</option>
+        </select>
+      </div>
+
+      <div id="gemini-group" class="form-group">
+        <label for="gemini-key">Gemini API Anahtarı</label>
+        <div class="input-wrapper">
+          <input type="password" id="gemini-key" placeholder="AIzaSy...">
+          <button type="button" id="toggle-gemini-password" class="password-toggle">Göster</button>
+        </div>
+        <div class="help-text">
+          Gemini API anahtarınız yoksa <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a> üzerinden ücretsiz bir anahtar alabilirsiniz.
+        </div>
+      </div>
+
+      <div id="groq-group" class="form-group" style="display: none;">
+        <label for="groq-key">Groq API Anahtarı</label>
+        <div class="input-wrapper">
+          <input type="password" id="groq-key" placeholder="gsk_...">
+          <button type="button" id="toggle-groq-password" class="password-toggle">Göster</button>
+        </div>
+        <div class="help-text">
+          Groq API anahtarınız yoksa <a href="https://console.groq.com/" target="_blank">Groq Console</a> üzerinden bir anahtar alabilirsiniz.
+        </div>
+      </div>
+
+      <div id="groq-model-group" class="form-group" style="display: none;">
+        <label for="groq-model">Groq Modeli</label>
+        <select id="groq-model">
+          <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Önerilen)</option>
+          <option value="llama-3.1-8b-instant">Llama 3.1 8B (Hızlı)</option>
+          <option value="gemma2-9b-it">Gemma 2 9B (Google)</option>
+          <option value="mixtral-8x7b-32768">Mixtral 8x7B (MoE)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="language">Özet Dili</label>
+        <select id="language">
+          <option value="Turkish">Türkçe</option>
+          <option value="English">English</option>
+          <option value="German">Deutsch</option>
+          <option value="French">Français</option>
+          <option value="Spanish">Español</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="detail-level">Özet Detayı</label>
+        <select id="detail-level">
+          <option value="detailed">Detaylı (Giriş + Maddeler + Sonuç)</option>
+          <option value="quick">Kısa Özet (1 Paragraf + Kısa Maddeler)</option>
+          <option value="bullets">Sadece Önemli Maddeler</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn-save">
+        <span>Değişiklikleri Kaydet</span>
+      </button>
+
+      <div id="status" class="status-msg status-success">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        <span>Ayarlar başarıyla kaydedildi!</span>
+      </div>
+    </form>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
