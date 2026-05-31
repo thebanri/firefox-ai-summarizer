@@ -168,6 +168,8 @@ async function requestSummary(text, pageTitle) {
   const provider = settings.provider || "gemini";
   const prompt = buildPrompt(settings.language, settings.detailLevel, pageTitle);
 
+  console.log(`[Zen AI Summarizer] Yapay zeka sağlayıcısı kullanılıyor: ${provider.toUpperCase()}`);
+
   if (provider === "gemini") {
     const key = settings.geminiApiKey || settings.apiKey;
     if (!key) {
@@ -186,6 +188,7 @@ async function requestSummary(text, pageTitle) {
 
 // Request summary from Gemini API
 async function requestSummaryFromGemini(text, prompt, apiKey) {
+  console.log("[Zen AI Summarizer] Gemini API isteği başlatılıyor (Model: gemini-2.5-flash)...");
   const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const response = await fetch(apiEndpoint, {
@@ -257,6 +260,7 @@ async function requestSummaryFromGemini(text, prompt, apiKey) {
 
 // Request summary from Groq API
 async function requestSummaryFromGroq(text, prompt, apiKey, model) {
+  console.log(`[Zen AI Summarizer] Groq API isteği başlatılıyor (Model: ${model})...`);
   const apiEndpoint = "https://api.groq.com/openai/v1/chat/completions";
 
   const response = await fetch(apiEndpoint, {
