@@ -1,6 +1,6 @@
-# Zen AI Summarizer
+# Firefox AI Summarizer
 
-Zen Browser (veya diğer Firefox tabanlı tarayıcılar) için geliştirilmiş, web sayfalarını ve köprü bağlantılarını (links) yapay zeka kullanarak anında özetleyen premium bir tarayıcı eklentisidir.
+Firefox Browser (veya diğer Firefox tabanlı tarayıcılar) için geliştirilmiş, web sayfalarını ve köprü bağlantılarını (links) yapay zeka kullanarak anında özetleyen premium bir tarayıcı eklentisidir.
 
 ## Özellikler
 
@@ -14,7 +14,7 @@ Zen Browser (veya diğer Firefox tabanlı tarayıcılar) için geliştirilmiş, 
 
 ## Kurulum ve Çalıştırma
 
-1. Zen Browser'da adres satırına `about:debugging` yazıp Enter'a basın.
+1. Firefox Browser'da adres satırına `about:debugging` yazıp Enter'a basın.
 2. Sol menüden **"This Firefox"** seçeneğine gidin.
 3. **"Load Temporary Add-on..."** butonuna tıklayın.
 4. Bu projenin içindeki **`manifest.json`** dosyasını seçip yükleyin.
