@@ -18,8 +18,8 @@ function createOverlay() {
   panelContainer.style.zIndex = "2147483647"; // Max z-index
   document.body.appendChild(panelContainer);
 
-  // Attach Shadow DOM for style isolation
-  shadowRoot = panelContainer.attachShadow({ mode: "open" });
+  // Attach Shadow DOM for style isolation (Closed mode for higher security)
+  shadowRoot = panelContainer.attachShadow({ mode: "closed" });
 
   // Add styles
   const style = document.createElement("style");

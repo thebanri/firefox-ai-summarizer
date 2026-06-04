@@ -188,13 +188,14 @@ async function requestSummary(text, pageTitle) {
 
 // Request summary from Gemini API
 async function requestSummaryFromGemini(text, prompt, apiKey) {
-  console.log("[Zen AI Summarizer] Gemini API isteği başlatılıyor (Model: gemini-2.5-flash)...");
-  const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  console.log("[Zen AI Summarizer] Gemini API isteği başlatılıyor...");
+  const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
   const response = await fetch(apiEndpoint, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey
     },
     body: JSON.stringify({
       contents: [
