@@ -121,7 +121,7 @@ function createOverlay() {
     }
 
     .brand-title {
-      font-size: 1.15rem;
+      font-size: 16px;
       font-weight: 700;
       background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
       -webkit-background-clip: text;
@@ -166,7 +166,7 @@ function createOverlay() {
       overflow-y: auto;
       padding: 24px;
       line-height: 1.6;
-      font-size: 0.95rem;
+      font-size: 14.5px;
       scrollbar-width: thin;
       scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
     }
@@ -180,7 +180,7 @@ function createOverlay() {
     }
 
     .source-info {
-      font-size: 0.8rem;
+      font-size: 12.5px;
       color: var(--text-muted);
       margin-bottom: 20px;
       padding: 10px 12px;
@@ -194,13 +194,13 @@ function createOverlay() {
       color: var(--text);
       display: block;
       margin-bottom: 4px;
-      font-size: 0.85rem;
+      font-size: 13.5px;
     }
 
     /* Markdown output styles */
     .summary-text {
       color: #f3f4f6;
-      font-size: 0.95rem;
+      font-size: 14.5px;
       line-height: 1.65;
     }
 
@@ -221,10 +221,10 @@ function createOverlay() {
       margin-bottom: 12px;
     }
 
-    .summary-text h1 { font-size: 1.45rem; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
-    .summary-text h2 { font-size: 1.3rem; }
-    .summary-text h3 { font-size: 1.15rem; border-left: 3px solid var(--primary); padding-left: 8px; }
-    .summary-text h4 { font-size: 1.05rem; color: var(--text-muted); }
+    .summary-text h1 { font-size: 21px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+    .summary-text h2 { font-size: 19px; }
+    .summary-text h3 { font-size: 16px; border-left: 3px solid var(--primary); padding-left: 8px; }
+    .summary-text h4 { font-size: 15px; color: var(--text-muted); }
 
     .summary-text ul, 
     .summary-text ol {
@@ -258,7 +258,7 @@ function createOverlay() {
 
     .summary-text code {
       font-family: 'Fira Code', 'Courier New', Courier, monospace;
-      font-size: 0.85rem;
+      font-size: 13.5px;
       background: rgba(255, 255, 255, 0.08);
       padding: 2px 6px;
       border-radius: 4px;
@@ -278,7 +278,54 @@ function createOverlay() {
       background: none;
       padding: 0;
       color: #f3f4f6;
-      font-size: 0.85rem;
+      font-size: 13.5px;
+    }
+
+    /* Advanced View Code Blocks */
+    .code-block-wrapper {
+      background: rgba(10, 10, 15, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 18px 0;
+      overflow: hidden;
+    }
+    .code-block-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .code-copy-btn {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    .code-copy-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    .code-block-wrapper pre {
+      margin: 0;
+      padding: 14px;
+      overflow-x: auto;
+      border: none;
+      border-radius: 0;
+      background: transparent;
     }
 
     .table-wrapper {
@@ -293,7 +340,7 @@ function createOverlay() {
       width: 100%;
       border-collapse: collapse;
       text-align: left;
-      font-size: 0.9rem;
+      font-size: 14px;
     }
 
     .summary-text th {
@@ -353,7 +400,7 @@ function createOverlay() {
 
     .loader-text {
       color: var(--text-muted);
-      font-size: 0.85rem;
+      font-size: 13px;
       font-weight: 500;
       animation: pulse 1.5s ease-in-out infinite;
     }
@@ -370,7 +417,7 @@ function createOverlay() {
       border: 1px solid rgba(239, 68, 68, 0.2);
       border-radius: 12px;
       color: #fca5a5;
-      font-size: 0.9rem;
+      font-size: 14px;
       margin-top: 10px;
     }
 
@@ -429,7 +476,7 @@ function createOverlay() {
       max-width: 85%;
       padding: 12px 16px;
       border-radius: 12px;
-      font-size: 0.95rem;
+      font-size: 14.5px;
       line-height: 1.5;
     }
     .chat-msg.user {
@@ -445,7 +492,7 @@ function createOverlay() {
       border-bottom-left-radius: 4px;
     }
     .chat-msg.ai .summary-text {
-      font-size: 0.95rem;
+      font-size: 14.5px;
     }
     .chat-input-wrapper {
       display: flex;
@@ -461,7 +508,7 @@ function createOverlay() {
       border: none;
       color: var(--text);
       font-family: inherit;
-      font-size: 0.95rem;
+      font-size: 14.5px;
       resize: none;
       min-height: 24px;
       max-height: 120px;
@@ -737,15 +784,62 @@ function createOverlay() {
     }
   });
 
+  // Event delegation for code block copy buttons
+  shadowRoot.getElementById("content-body").addEventListener("click", async (e) => {
+    const codeBtn = e.target.closest(".code-copy-btn");
+    if (codeBtn) {
+      const codeBlock = codeBtn.closest(".code-block-wrapper").querySelector("code");
+      if (codeBlock) {
+        try {
+          await navigator.clipboard.writeText(codeBlock.innerText);
+          const originalHtml = codeBtn.innerHTML;
+          codeBtn.innerHTML = `
+            <svg width="14" height="14" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Kopyalandı
+          `;
+          setTimeout(() => {
+            codeBtn.innerHTML = originalHtml;
+          }, 2000);
+        } catch (err) {
+          console.error("Kod kopyalanamadı:", err);
+        }
+      }
+    }
+  });
+
   // Chat event listeners
   const chatInput = shadowRoot.getElementById("chat-input");
   const chatSendBtn = shadowRoot.getElementById("chat-send-btn");
   
   const sendChatMessage = () => {
-    const text = chatInput.value.trim();
+    let text = chatInput.value.trim();
     if (!text) return;
     
-    appendChatMessage("user", text);
+    // Slash commands
+    let originalText = text;
+    if (text.startsWith("/clear")) {
+      chatHistory = [];
+      saveChatHistory();
+      shadowRoot.getElementById("chat-messages").innerHTML = "";
+      if (currentPageText.length < 50) {
+        appendChatMessage("ai", "Sohbet temizlendi. Sayfada okunabilecek yeterli metin bulamadım, ancak genel sorular sorabilirsiniz.");
+      } else {
+        appendChatMessage("ai", "Sohbet temizlendi. Bu sayfanın içeriği hakkında bana yeni sorular sorabilirsiniz.");
+      }
+      chatInput.value = "";
+      chatInput.style.height = "auto";
+      return;
+    } else if (text.startsWith("/çevir")) {
+      text = text.replace("/çevir", "Şu metni Türkçe'ye çevir:").trim();
+    } else if (text.startsWith("/kod-açıkla")) {
+      text = text.replace("/kod-açıkla", "Aşağıdaki kodu satır satır ve detaylı bir şekilde açıkla:").trim();
+    } else if (text.startsWith("/5-yaşındakine-anlat")) {
+      text = text.replace("/5-yaşındakine-anlat", "Aşağıdaki konuyu 5 yaşındaki bir çocuğun anlayabileceği kadar basit, analojiler kullanarak açıkla:").trim();
+    }
+    
+    appendChatMessage("user", originalText);
     chatInput.value = "";
     chatInput.style.height = "auto";
     chatSendBtn.disabled = true;
@@ -775,6 +869,7 @@ function createOverlay() {
         appendChatMessage("ai", replyHtml, null, true);
         chatHistory.push({ role: "user", content: text });
         chatHistory.push({ role: "assistant", content: response.reply });
+        saveChatHistory();
       } else {
         appendChatMessage("ai", `Hata: ${response.error}`);
       }
@@ -824,10 +919,43 @@ function appendChatMessage(sender, textOrHtml, id = null, isHtml = false) {
 // Global chat state for this page
 let chatHistory = [];
 let currentPageText = "";
+let isChatLoaded = false;
+let lastSelectedText = "";
+
+function getChatKey() {
+  return "zen_chat_" + window.location.hostname + window.location.pathname;
+}
+
+function saveChatHistory() {
+  chrome.storage.local.set({ [getChatKey()]: chatHistory });
+}
+
+function loadChatHistory() {
+  if (isChatLoaded) return;
+  chrome.storage.local.get([getChatKey()], (result) => {
+    const history = result[getChatKey()];
+    if (history && Array.isArray(history) && history.length > 0) {
+      chatHistory = history;
+      history.forEach(msg => {
+        if (msg.role === "user") appendChatMessage("user", msg.content);
+        if (msg.role === "assistant") appendChatMessage("ai", parseMarkdown(msg.content), null, true);
+      });
+    } else {
+      // First time chatting on this page
+      if (currentPageText.length < 50) {
+        appendChatMessage("ai", "Sayfada okunabilecek yeterli metin bulamadım, ancak genel sorular sorabilirsiniz.");
+      } else {
+        appendChatMessage("ai", "Merhaba! Bu sayfanın içeriğini inceledim. Bana sayfayla ilgili istediğiniz soruyu sorabilirsiniz.");
+      }
+    }
+    isChatLoaded = true;
+  });
+}
 
 // Show the overlay panel
 function showOverlay(mode = "summary") {
   createOverlay();
+  loadChatHistory();
   
   const resultContainer = shadowRoot.getElementById("result-container");
   const chatContainer = shadowRoot.getElementById("chat-container");
@@ -932,10 +1060,67 @@ function displayResult({ title, url, summaryHtml, error, isApiKeyMissing = false
 }
 
 // Extract main text content of the active page
-function extractPageText() {
+async function extractPageTextAsync() {
   const title = document.title || "Mevcut Sayfa";
   const url = window.location.href;
+  let extraContext = "";
+
+  if (window.location.hostname.includes("youtube.com")) {
+    try {
+      const html = await fetch(window.location.href).then(r => r.text());
+      const match = html.match(/"captionTracks":\[(.*?)\]/);
+      if (match) {
+        const tracks = JSON.parse(`[${match[1]}]`);
+        const track = tracks.find(t => t.languageCode === 'tr') || tracks.find(t => t.languageCode === 'en') || tracks[0];
+        if (track) {
+          const xml = await fetch(track.baseUrl).then(r => r.text());
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(xml, "text/xml");
+          const texts = Array.from(doc.getElementsByTagName("text")).map(t => t.textContent).join(" ");
+          extraContext += "\n\n[YOUTUBE VİDEO ALT YAZISI (TRANSCRIPT)]:\n" + texts;
+        }
+      }
+    } catch (e) {
+      console.log("YouTube altyazısı alınamadı:", e);
+    }
+  }
   
+  // Extract JSON-LD SEO schema (often contains hidden product prices on e-commerce sites)
+  try {
+    const schemas = document.querySelectorAll('script[type="application/ld+json"]');
+    schemas.forEach(schema => {
+      try {
+        const parsed = JSON.parse(schema.innerText);
+        // Only include if it has Product, Organization, or relevant e-commerce data to avoid bloat
+        const schemaString = JSON.stringify(parsed);
+        if (schemaString.includes("Product") || schemaString.includes("price") || schemaString.includes("offers")) {
+          // Remove huge image arrays from the stringified JSON to save tokens
+          extraContext += "\n\n[GİZLİ SEO/ÜRÜN BİLGİSİ (JSON-LD)]:\n" + JSON.stringify(parsed, (key, val) => key === 'image' ? undefined : val, 2);
+        }
+      } catch(err) {}
+    });
+  } catch (e) {
+    console.log("JSON-LD alınamadı:", e);
+  }
+
+  // Extract WooCommerce variations data which holds dynamic prices
+  try {
+    const variationForms = document.querySelectorAll('.variations_form[data-product_variations]');
+    variationForms.forEach(form => {
+      const vars = JSON.parse(form.getAttribute('data-product_variations'));
+      // Only keep attributes and price info to avoid huge image blocks
+      const cleanVars = vars.map(v => ({
+        attributes: v.attributes,
+        display_price: v.display_price,
+        display_regular_price: v.display_regular_price,
+        price_html: v.price_html
+      }));
+      extraContext += "\n\n[ÜRÜN VARYASYON BİLGİLERİ (Fiyatlar)]:\n" + JSON.stringify(cleanVars, null, 2);
+    });
+  } catch (e) {
+    console.log("Varyasyon bilgisi alınamadı:", e);
+  }
+
   // Clone to avoid breaking original page elements
   const bodyClone = document.body.cloneNode(true);
   
@@ -946,12 +1131,24 @@ function extractPageText() {
   elementsToRemove.forEach(el => el.remove());
   
   // Try to find structural tags, otherwise use whole document
-  const mainContent = bodyClone.querySelector("article") || bodyClone.querySelector("main") || bodyClone;
+  // On feed sites (like daily.dev), querySelector("article") might just pick the first tiny feed card.
+  // Instead, find the article or main tag with the most text!
+  const candidates = Array.from(bodyClone.querySelectorAll("article, main, [role='main']"));
+  let mainContent = bodyClone;
+  if (candidates.length > 0) {
+    mainContent = candidates.reduce((a, b) => {
+      const aLen = (a.innerText || "").length;
+      const bLen = (b.innerText || "").length;
+      return aLen > bLen ? a : b;
+    });
+  }
   
   let text = mainContent.innerText || mainContent.textContent || "";
   
   // Clean whitespace
   text = text.replace(/\s+/g, " ").trim();
+  
+  text += extraContext;
   
   return {
     title,
@@ -971,7 +1168,24 @@ function parseMarkdown(markdown) {
     .replace(/>/g, "&gt;");
 
   // Code blocks (```code```)
-  html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+  html = html.replace(/```(?:(\w+)\n)?([\s\S]*?)```/g, (match, lang, code) => {
+    const language = lang ? lang : 'text';
+    return `
+      <div class="code-block-wrapper">
+        <div class="code-block-header">
+          <span>${language}</span>
+          <button class="code-copy-btn">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+              <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+            </svg>
+            Kopyala
+          </button>
+        </div>
+        <pre><code>${code}</code></pre>
+      </div>
+    `;
+  });
   
   // Inline code (`code`)
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -1100,46 +1314,46 @@ function parseMarkdown(markdown) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "summarize_page") {
     // Start page summarization
-    const pageData = extractPageText();
-    
-    if (pageData.text.length < 50) {
-      showOverlay("summary");
-      displayResult({
-        error: "Sayfada özetlenebilecek yeterli metin bulunamadı. Sayfa boş olabilir.",
-        title: pageData.title,
-        url: pageData.url
-      });
-      return;
-    }
-
-    showLoader("Sayfa içeriği analiz ediliyor...");
-
-    // Send text to background script to call Gemini API
-    chrome.runtime.sendMessage({
-      action: "summarize_current_page_text",
-      text: pageData.text,
-      title: pageData.title
-    }, (response) => {
-      if (!response) {
-        displayResult({ error: "Arka plan servisi ile iletişim kurulamadı." });
-        return;
-      }
-      if (response.success) {
-        const summaryHtml = parseMarkdown(response.summary);
+    extractPageTextAsync().then(pageData => {
+      if (pageData.text.length < 50) {
+        showOverlay("summary");
         displayResult({
-          title: pageData.title,
-          url: pageData.url,
-          summaryHtml: summaryHtml
-        });
-      } else {
-        const isMissing = response.error && response.error.includes("API_KEY_MISSING");
-        displayResult({
-          error: isMissing ? null : response.error,
-          isApiKeyMissing: isMissing,
+          error: "Sayfada özetlenebilecek yeterli metin bulunamadı. Sayfa boş olabilir.",
           title: pageData.title,
           url: pageData.url
         });
+        return;
       }
+
+      showLoader("Sayfa içeriği analiz ediliyor...");
+
+      // Send text to background script to call Gemini API
+      chrome.runtime.sendMessage({
+        action: "summarize_current_page_text",
+        text: pageData.text,
+        title: pageData.title
+      }, (response) => {
+        if (!response) {
+          displayResult({ error: "Arka plan servisi ile iletişim kurulamadı." });
+          return;
+        }
+        if (response.success) {
+          const summaryHtml = parseMarkdown(response.summary);
+          displayResult({
+            title: pageData.title,
+            url: pageData.url,
+            summaryHtml: summaryHtml
+          });
+        } else {
+          const isMissing = response.error && response.error.includes("API_KEY_MISSING");
+          displayResult({
+            error: isMissing ? null : response.error,
+            isApiKeyMissing: isMissing,
+            title: pageData.title,
+            url: pageData.url
+          });
+        }
+      });
     });
   }
 
@@ -1164,7 +1378,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     displayResult({
       title: request.title,
       url: request.url,
-      summaryHtml: summaryHtml
+      summaryHtml: request.success ? parseMarkdown(request.summary) : null
     });
   }
 
@@ -1178,21 +1392,88 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === "chat_page") {
-    const pageData = extractPageText();
-    currentPageText = pageData.text;
-    chatHistory = [];
-    
-    showOverlay("chat");
-    shadowRoot.getElementById("loader").style.display = "none";
-    shadowRoot.getElementById("chat-messages").innerHTML = "";
-    
-    const brandTitle = shadowRoot.querySelector(".brand-title");
-    brandTitle.textContent = "Zen AI Chat";
-    
-    if (pageData.text.length < 50) {
-      appendChatMessage("ai", "Sayfada okunabilecek yeterli metin bulamadım, ancak genel sorular sorabilirsiniz.");
-    } else {
-      appendChatMessage("ai", "Merhaba! Bu sayfanın içeriğini inceledim. Bana sayfayla ilgili istediğiniz soruyu sorabilirsiniz.");
-    }
+    extractPageTextAsync().then(pageData => {
+      currentPageText = pageData.text;
+      
+      showOverlay("chat");
+      shadowRoot.getElementById("loader").style.display = "none";
+      
+      const brandTitle = shadowRoot.querySelector(".brand-title");
+      brandTitle.textContent = "Zen AI Chat";
+      
+      if (!isChatLoaded || chatHistory.length === 0) {
+        // If chat history is entirely empty (and we've waited for loadChatHistory), we could add greeting
+        // But loadChatHistory is async. It's better to add the greeting inside loadChatHistory if empty.
+      }
+    });
   }
+
+  if (request.action === "translate_page_reader") {
+    translatePageInPlace();
+  }
+});
+
+// --- Highlight & Explain (Seç ve Açıkla) ---
+const selectionIcon = document.createElement("div");
+selectionIcon.id = "zen-ai-selection-icon";
+selectionIcon.style.cssText = `
+  position: absolute;
+  display: none;
+  background: var(--primary, #8b5cf6);
+  color: white;
+  padding: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 2147483647;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+`;
+selectionIcon.innerHTML = `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke-linecap="round" opacity="0.5"/><path d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6Z"/></svg>`;
+selectionIcon.title = "Zen AI ile Açıkla / Özetle";
+document.body.appendChild(selectionIcon);
+
+document.addEventListener("mouseup", (e) => {
+  if (e.target.closest("#zen-ai-summarizer-container") || e.target.closest("#zen-ai-selection-icon") || e.target.closest("#bubble")) {
+    return;
+  }
+  
+  const selection = window.getSelection();
+  const text = selection.toString().trim();
+  
+  if (text.length > 5) {
+    lastSelectedText = text;
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    
+    selectionIcon.style.display = "flex";
+    selectionIcon.style.top = `${window.scrollY + rect.bottom + 8}px`;
+    selectionIcon.style.left = `${window.scrollX + rect.right - 18}px`;
+  } else {
+    selectionIcon.style.display = "none";
+  }
+});
+
+document.addEventListener("mousedown", (e) => {
+  if (!e.target.closest("#zen-ai-selection-icon")) {
+    selectionIcon.style.display = "none";
+  }
+});
+
+selectionIcon.addEventListener("click", async () => {
+  selectionIcon.style.display = "none";
+  showOverlay("chat");
+  
+  // Ensure we have background context
+  if (!currentPageText) {
+    const pageData = await extractPageTextAsync();
+    currentPageText = pageData.text;
+  }
+  
+  const chatInput = shadowRoot.getElementById("chat-input");
+  chatInput.value = `Lütfen aşağıdaki metni detaylı bir şekilde açıkla:\n"\n${lastSelectedText}\n"`;
+  chatInput.style.height = "auto";
+  chatInput.style.height = (chatInput.scrollHeight) + "px";
+  chatInput.focus();
 });

@@ -223,6 +223,7 @@
           <option value="gemini">Google Gemini</option>
           <option value="groq">Groq Cloud</option>
           <option value="openrouter">OpenRouter</option>
+          <option value="github">GitHub Models</option>
         </select>
       </div>
 
@@ -277,6 +278,29 @@
         <select id="openrouter-model">
           <!-- Modeller API'den doldurulacak -->
         </select>
+      </div>
+
+      <div id="github-group" class="form-group" style="display: none;">
+        <label for="github-key">GitHub Personal Access Token</label>
+        <div class="input-wrapper">
+          <input type="password" id="github-key" placeholder="ghp_...">
+          <button type="button" id="toggle-github-password" class="password-toggle">Göster</button>
+        </div>
+        <div class="help-text">
+          GitHub üzerinden aldığınız Personal Access Token'ı (PAT) buraya girin.
+        </div>
+      </div>
+
+      <div id="github-model-group" class="form-group" style="display: none;">
+        <label for="github-model">GitHub Modeli</label>
+        <select id="github-model">
+          <option value="gpt-4o">GPT-4o (OpenAI)</option>
+          <option value="gpt-4o-mini">GPT-4o Mini (OpenAI)</option>
+          <option value="Llama-3.3-70B-Instruct">Llama 3.3 70B (Meta)</option>
+          <option value="Meta-Llama-3-8B-Instruct">Llama 3 8B (Meta)</option>
+          <option value="Cohere-command-r-plus">Command R+ (Cohere)</option>
+        </select>
+        <div class="help-text">GitHub Models API'si üzerinden kullanılacak model.</div>
       </div>
 
       <div class="form-group">

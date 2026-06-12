@@ -1,15 +1,17 @@
 // Set up context menus when the extension is installed
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: "summarize-page",
-    title: "Bu Sayfayı AI ile Özetle",
-    contexts: ["page", "selection"]
-  });
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: "summarize-page",
+      title: "Bu Sayfayı AI ile Özetle",
+      contexts: ["page", "selection"]
+    });
 
-  chrome.contextMenus.create({
-    id: "summarize-link",
-    title: "Bu Bağlantıyı AI ile Özetle",
-    contexts: ["link"]
+    chrome.contextMenus.create({
+      id: "summarize-link",
+      title: "Bu Bağlantıyı AI ile Özetle",
+      contexts: ["link"]
+    });
   });
 });
 
@@ -46,6 +48,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Keep message channel open for async response
   }
 
+  if (request.action === "chat_with_page") {
+    requestChat(request.text, request.history, request.message)
+      .then(reply => {
+        sendResponse({ success: true, reply });
+      })
+      .catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+  
   if (request.action === "chat_with_page") {
     requestChat(request.text, request.history, request.message)
       .then(reply => {
@@ -174,6 +187,8 @@ async function requestSummary(text, pageTitle) {
     groqModel: "llama-3.3-70b-versatile",
     openrouterApiKey: "",
     openrouterModel: "",
+    githubApiKey: "",
+    githubModel: "",
     language: "Turkish",
     detailLevel: "detailed"
   });
@@ -202,15 +217,62 @@ async function requestSummary(text, pageTitle) {
       throw new Error("Lütfen seçeneklerden OpenRouter modelini seçin.");
     }
     return requestSummaryFromOpenRouter(text, prompt, settings.openrouterApiKey, settings.openrouterModel);
+  } else if (provider === "github") {
+    if (!settings.githubApiKey) {
+      throw new Error("API_KEY_MISSING");
+    }
+    if (!settings.githubModel) {
+      throw new Error("Lütfen GitHub modelini seçin.");
+    }
+    return requestSummaryFromGithub(text, prompt, settings.githubApiKey, settings.githubModel);
   } else {
     throw new Error(`Bilinmeyen sağlayıcı: ${provider}`);
   }
 }
 
-// Request summary from Gemini API
+// Translate page text to markdown
+async function requestTranslation(text, pageTitle) {
+  const settings = await chrome.storage.local.get({
+    provider: "gemini",
+    geminiApiKey: "",
+    apiKey: "", // legacy fallback
+    groqApiKey: "",
+    groqModel: "llama-3.3-70b-versatile",
+    openrouterApiKey: "",
+    openrouterModel: "",
+    githubApiKey: "",
+    githubModel: ""
+  });
+
+  const provider = settings.provider || "gemini";
+  const prompt = `Lütfen aşağıdaki web sayfası metnini Türkçe'ye çevir. Çıktıyı doğrudan, sayfada okunabilecek güzel bir makale (Markdown) formatında ver. Başlıklar, paragraflar ve listeleri koru. İngilizce kelime veya kod parçalarını bozma.\n\nSayfa Başlığı: ${pageTitle}\n\nİçerik:\n${text}`;
+
+  console.log(`[Zen AI Summarizer] Reader Mode Çeviri yapılıyor: ${provider.toUpperCase()}`);
+
+  if (provider === "gemini") {
+    const key = settings.geminiApiKey || settings.apiKey;
+    if (!key) throw new Error("API_KEY_MISSING");
+    return requestSummaryFromGemini(text, prompt, key);
+  } else if (provider === "groq") {
+    if (!settings.groqApiKey) throw new Error("API_KEY_MISSING");
+    return requestSummaryFromGroq(text, prompt, settings.groqApiKey, settings.groqModel);
+  } else if (provider === "openrouter") {
+    if (!settings.openrouterApiKey) throw new Error("API_KEY_MISSING");
+    if (!settings.openrouterModel) throw new Error("Lütfen seçeneklerden OpenRouter modelini seçin.");
+    return requestSummaryFromOpenRouter(text, prompt, settings.openrouterApiKey, settings.openrouterModel);
+  } else if (provider === "github") {
+    if (!settings.githubApiKey) throw new Error("API_KEY_MISSING");
+    if (!settings.githubModel) throw new Error("Lütfen GitHub modelini seçin.");
+    return requestSummaryFromGithub(text, prompt, settings.githubApiKey, settings.githubModel);
+  } else {
+    throw new Error(`Bilinmeyen sağlayıcı: ${provider}`);
+  }
+}
+
+// Request summary from Gemini
 async function requestSummaryFromGemini(text, prompt, apiKey) {
   console.log("[Zen AI Summarizer] Gemini API isteği başlatılıyor...");
-  const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+  const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
   const response = await fetch(apiEndpoint, {
     method: "POST",
@@ -232,6 +294,9 @@ async function requestSummaryFromGemini(text, prompt, apiKey) {
         temperature: 0.3,
         maxOutputTokens: 8192
       },
+      tools: [
+        { googleSearch: {} }
+      ],
       safetySettings: [
         {
           category: "HARM_CATEGORY_HARASSMENT",
@@ -414,6 +479,8 @@ async function requestChat(pageText, history, userMessage) {
     groqModel: "llama-3.3-70b-versatile",
     openrouterApiKey: "",
     openrouterModel: "",
+    githubApiKey: "",
+    githubModel: "",
     language: "Turkish"
   });
 
@@ -444,13 +511,17 @@ ${pageText}
     if (!settings.openrouterApiKey) throw new Error("API_KEY_MISSING");
     if (!settings.openrouterModel) throw new Error("Lütfen seçeneklerden OpenRouter modelini seçin.");
     return requestChatFromOpenRouter(systemPrompt, history, userMessage, settings.openrouterApiKey, settings.openrouterModel);
+  } else if (provider === "github") {
+    if (!settings.githubApiKey) throw new Error("API_KEY_MISSING");
+    if (!settings.githubModel) throw new Error("Lütfen GitHub modelini seçin.");
+    return requestChatFromGithub(systemPrompt, history, userMessage, settings.githubApiKey, settings.githubModel);
   } else {
     throw new Error(`Bilinmeyen sağlayıcı: ${provider}`);
   }
 }
 
 async function requestChatFromGemini(systemPrompt, history, userMessage, apiKey) {
-  const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+  const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
   // Map history to Gemini format
   const contents = [];
@@ -480,7 +551,10 @@ async function requestChatFromGemini(systemPrompt, history, userMessage, apiKey)
       generationConfig: {
         temperature: 0.3,
         maxOutputTokens: 2048
-      }
+      },
+      tools: [
+        { googleSearch: {} }
+      ]
     })
   });
 
@@ -566,5 +640,115 @@ async function requestChatFromOpenRouter(systemPrompt, history, userMessage, api
   const data = await response.json();
   let replyText = data.choices?.[0]?.message?.content;
   if (!replyText) throw new Error("OpenRouter API'den boş yanıt döndü.");
+  return replyText;
+}
+
+// Request summary from GitHub Models
+async function requestSummaryFromGithub(text, prompt, apiKey, model) {
+  console.log(`[Zen AI Summarizer] GitHub Models isteği başlatılıyor (Model: ${model})...`);
+  const apiEndpoint = "https://models.inference.ai.azure.com/chat/completions";
+
+  const response = await fetch(apiEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        {
+          role: "system",
+          content: prompt
+        },
+        {
+          role: "user",
+          content: `Lütfen aşağıdaki web sayfası içeriğini özetle:\n\n${text}`
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 4096
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const apiError = errorData.error?.message || response.statusText || response.status;
+    throw new Error(`GitHub Models Hatası: ${apiError}`);
+  }
+
+  const data = await response.json();
+  let summaryText = data.choices?.[0]?.message?.content;
+
+  if (!summaryText) {
+    throw new Error("GitHub Models'den boş yanıt döndü.");
+  }
+
+  const finishReason = data.choices?.[0]?.finish_reason;
+  if (finishReason && finishReason === "length") {
+    summaryText += `\n\n*(Not: Özet yarıda kesildi. Neden: Maksimum uzunluğa ulaşıldı)*`;
+  }
+
+  return summaryText;
+}
+
+// Request chat from GitHub Models
+async function requestChatFromGithub(systemPrompt, history, userMessage, apiKey, model) {
+  console.log(`[Zen AI Summarizer] GitHub Models Sohbet isteği başlatılıyor (Model: ${model})...`);
+  const apiEndpoint = "https://models.inference.ai.azure.com/chat/completions";
+
+  const messages = [
+    {
+      role: "system",
+      content: systemPrompt
+    }
+  ];
+
+  if (history && history.length > 0) {
+    history.forEach(msg => {
+      messages.push({
+        role: msg.role === "ai" ? "assistant" : msg.role,
+        content: msg.content
+      });
+    });
+  }
+
+  messages.push({
+    role: "user",
+    content: userMessage
+  });
+
+  const response = await fetch(apiEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: messages,
+      temperature: 0.5,
+      max_tokens: 4096
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const apiError = errorData.error?.message || response.statusText || response.status;
+    throw new Error(`GitHub Models Hatası: ${apiError}`);
+  }
+
+  const data = await response.json();
+  let replyText = data.choices?.[0]?.message?.content;
+
+  if (!replyText) {
+    throw new Error("GitHub Models'den boş yanıt döndü.");
+  }
+
+  const finishReason = data.choices?.[0]?.finish_reason;
+  if (finishReason && finishReason === "length") {
+    replyText += `\n\n*(Not: Yanıt yarıda kesildi. Neden: Maksimum uzunluğa ulaşıldı)*`;
+  }
+
   return replyText;
 }

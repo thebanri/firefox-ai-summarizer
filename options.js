@@ -7,12 +7,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const groqModelGroup = document.getElementById("groq-model-group");
   const openrouterGroup = document.getElementById("openrouter-group");
   const openrouterModelGroup = document.getElementById("openrouter-model-group");
+  const githubGroup = document.getElementById("github-group");
+  const githubModelGroup = document.getElementById("github-model-group");
 
   const geminiKeyInput = document.getElementById("gemini-key");
   const groqKeyInput = document.getElementById("groq-key");
   const groqModelSelect = document.getElementById("groq-model");
   const openrouterKeyInput = document.getElementById("openrouter-key");
   const openrouterModelSelect = document.getElementById("openrouter-model");
+  const githubKeyInput = document.getElementById("github-key");
+  const githubModelSelect = document.getElementById("github-model");
   const fetchModelsBtn = document.getElementById("fetch-models-btn");
   
   const languageSelect = document.getElementById("language");
@@ -22,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const toggleGeminiBtn = document.getElementById("toggle-gemini-password");
   const toggleGroqBtn = document.getElementById("toggle-groq-password");
   const toggleOpenrouterBtn = document.getElementById("toggle-openrouter-password");
+  const toggleGithubBtn = document.getElementById("toggle-github-password");
   
   const settingsForm = document.getElementById("settings-form");
   const statusBanner = document.getElementById("status");
@@ -35,18 +40,32 @@ document.addEventListener("DOMContentLoaded", () => {
       groqModelGroup.style.display = "none";
       openrouterGroup.style.display = "none";
       openrouterModelGroup.style.display = "none";
+      githubGroup.style.display = "none";
+      githubModelGroup.style.display = "none";
     } else if (provider === "groq") {
       geminiGroup.style.display = "none";
       groqGroup.style.display = "block";
       groqModelGroup.style.display = "block";
       openrouterGroup.style.display = "none";
       openrouterModelGroup.style.display = "none";
+      githubGroup.style.display = "none";
+      githubModelGroup.style.display = "none";
     } else if (provider === "openrouter") {
       geminiGroup.style.display = "none";
       groqGroup.style.display = "none";
       groqModelGroup.style.display = "none";
       openrouterGroup.style.display = "block";
       openrouterModelGroup.style.display = "block";
+      githubGroup.style.display = "none";
+      githubModelGroup.style.display = "none";
+    } else if (provider === "github") {
+      geminiGroup.style.display = "none";
+      groqGroup.style.display = "none";
+      groqModelGroup.style.display = "none";
+      openrouterGroup.style.display = "none";
+      openrouterModelGroup.style.display = "none";
+      githubGroup.style.display = "block";
+      githubModelGroup.style.display = "block";
     }
   }
 
@@ -61,6 +80,8 @@ document.addEventListener("DOMContentLoaded", () => {
     openrouterApiKey: "",
     openrouterModel: "",
     openrouterModelsList: [],
+    githubApiKey: "",
+    githubModel: "gpt-4o",
     language: "Turkish",
     detailLevel: "detailed",
     theme: "default"
@@ -70,6 +91,8 @@ document.addEventListener("DOMContentLoaded", () => {
     groqKeyInput.value = items.groqApiKey;
     groqModelSelect.value = items.groqModel;
     openrouterKeyInput.value = items.openrouterApiKey;
+    githubKeyInput.value = items.githubApiKey;
+    githubModelSelect.value = items.githubModel;
     languageSelect.value = items.language;
     detailSelect.value = items.detailLevel;
     themeSelect.value = items.theme;
@@ -154,6 +177,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  toggleGithubBtn.addEventListener("click", () => {
+    if (githubKeyInput.type === "password") {
+      githubKeyInput.type = "text";
+      toggleGithubBtn.textContent = "Gizle";
+    } else {
+      githubKeyInput.type = "password";
+      toggleGithubBtn.textContent = "Göster";
+    }
+  });
+
   // Save settings
   settingsForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -164,6 +197,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const groqModel = groqModelSelect.value;
     const openrouterApiKey = openrouterKeyInput.value.trim();
     const openrouterModel = openrouterModelSelect.value;
+    const githubApiKey = githubKeyInput.value.trim();
+    const githubModel = githubModelSelect.value;
     const language = languageSelect.value;
     const detailLevel = detailSelect.value;
     const theme = themeSelect.value;
@@ -175,6 +210,8 @@ document.addEventListener("DOMContentLoaded", () => {
       groqModel,
       openrouterApiKey,
       openrouterModel,
+      githubApiKey,
+      githubModel,
       language,
       detailLevel,
       theme
