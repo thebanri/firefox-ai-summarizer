@@ -274,7 +274,7 @@ async function requestSummaryFromGemini(text, prompt, apiKey) {
   console.log("[Zen AI Summarizer] Gemini API isteği başlatılıyor...");
   const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
-  const response = await fetch(apiEndpoint, {
+  const response = await fetch(`${apiEndpoint}?key=${apiKey}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
