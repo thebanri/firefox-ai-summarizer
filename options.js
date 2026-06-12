@@ -5,15 +5,23 @@ document.addEventListener("DOMContentLoaded", () => {
   const geminiGroup = document.getElementById("gemini-group");
   const groqGroup = document.getElementById("groq-group");
   const groqModelGroup = document.getElementById("groq-model-group");
+  const openrouterGroup = document.getElementById("openrouter-group");
+  const openrouterModelGroup = document.getElementById("openrouter-model-group");
 
   const geminiKeyInput = document.getElementById("gemini-key");
   const groqKeyInput = document.getElementById("groq-key");
   const groqModelSelect = document.getElementById("groq-model");
+  const openrouterKeyInput = document.getElementById("openrouter-key");
+  const openrouterModelSelect = document.getElementById("openrouter-model");
+  const fetchModelsBtn = document.getElementById("fetch-models-btn");
+  
   const languageSelect = document.getElementById("language");
   const detailSelect = document.getElementById("detail-level");
+  const themeSelect = document.getElementById("theme");
   
   const toggleGeminiBtn = document.getElementById("toggle-gemini-password");
   const toggleGroqBtn = document.getElementById("toggle-groq-password");
+  const toggleOpenrouterBtn = document.getElementById("toggle-openrouter-password");
   
   const settingsForm = document.getElementById("settings-form");
   const statusBanner = document.getElementById("status");
@@ -25,10 +33,20 @@ document.addEventListener("DOMContentLoaded", () => {
       geminiGroup.style.display = "block";
       groqGroup.style.display = "none";
       groqModelGroup.style.display = "none";
-    } else {
+      openrouterGroup.style.display = "none";
+      openrouterModelGroup.style.display = "none";
+    } else if (provider === "groq") {
       geminiGroup.style.display = "none";
       groqGroup.style.display = "block";
       groqModelGroup.style.display = "block";
+      openrouterGroup.style.display = "none";
+      openrouterModelGroup.style.display = "none";
+    } else if (provider === "openrouter") {
+      geminiGroup.style.display = "none";
+      groqGroup.style.display = "none";
+      groqModelGroup.style.display = "none";
+      openrouterGroup.style.display = "block";
+      openrouterModelGroup.style.display = "block";
     }
   }
 
@@ -40,16 +58,69 @@ document.addEventListener("DOMContentLoaded", () => {
     geminiApiKey: "",
     groqApiKey: "",
     groqModel: "llama-3.3-70b-versatile",
+    openrouterApiKey: "",
+    openrouterModel: "",
+    openrouterModelsList: [],
     language: "Turkish",
-    detailLevel: "detailed"
+    detailLevel: "detailed",
+    theme: "default"
   }, (items) => {
     providerSelect.value = items.provider;
     geminiKeyInput.value = items.geminiApiKey;
     groqKeyInput.value = items.groqApiKey;
     groqModelSelect.value = items.groqModel;
+    openrouterKeyInput.value = items.openrouterApiKey;
     languageSelect.value = items.language;
     detailSelect.value = items.detailLevel;
+    themeSelect.value = items.theme;
+    
+    // Populate OpenRouter models if exist
+    if (items.openrouterModelsList && items.openrouterModelsList.length > 0) {
+      populateModels(items.openrouterModelsList, items.openrouterModel);
+    }
+    
     updateUI();
+  });
+
+  function populateModels(models, selectedModel) {
+    openrouterModelSelect.innerHTML = "";
+    models.forEach(model => {
+      const option = document.createElement("option");
+      option.value = model.id;
+      option.textContent = model.name;
+      openrouterModelSelect.appendChild(option);
+    });
+    if (selectedModel) {
+      openrouterModelSelect.value = selectedModel;
+    }
+  }
+
+  // Fetch OpenRouter Models
+  fetchModelsBtn.addEventListener("click", async () => {
+    const key = openrouterKeyInput.value.trim();
+    if (!key) {
+      alert("Lütfen önce OpenRouter API anahtarını girin.");
+      return;
+    }
+    fetchModelsBtn.textContent = "Yükleniyor...";
+    fetchModelsBtn.disabled = true;
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/models", {
+        headers: { "Authorization": `Bearer ${key}` }
+      });
+      if (!response.ok) throw new Error("Modeller alınamadı. API anahtarını kontrol edin.");
+      const data = await response.json();
+      const models = data.data.map(m => ({ id: m.id, name: m.name })).sort((a, b) => a.name.localeCompare(b.name));
+      populateModels(models, models[0].id);
+      
+      chrome.storage.local.set({ openrouterModelsList: models });
+      alert("Modeller başarıyla yüklendi!");
+    } catch (err) {
+      alert("Hata: " + err.message);
+    } finally {
+      fetchModelsBtn.textContent = "Modelleri Getir";
+      fetchModelsBtn.disabled = false;
+    }
   });
 
   // Toggle API Key visibility
@@ -73,6 +144,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  toggleOpenrouterBtn.addEventListener("click", () => {
+    if (openrouterKeyInput.type === "password") {
+      openrouterKeyInput.type = "text";
+      toggleOpenrouterBtn.textContent = "Gizle";
+    } else {
+      openrouterKeyInput.type = "password";
+      toggleOpenrouterBtn.textContent = "Göster";
+    }
+  });
+
   // Save settings
   settingsForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -81,16 +162,22 @@ document.addEventListener("DOMContentLoaded", () => {
     const geminiApiKey = geminiKeyInput.value.trim();
     const groqApiKey = groqKeyInput.value.trim();
     const groqModel = groqModelSelect.value;
+    const openrouterApiKey = openrouterKeyInput.value.trim();
+    const openrouterModel = openrouterModelSelect.value;
     const language = languageSelect.value;
     const detailLevel = detailSelect.value;
+    const theme = themeSelect.value;
 
     chrome.storage.local.set({
       provider,
       geminiApiKey,
       groqApiKey,
       groqModel,
+      openrouterApiKey,
+      openrouterModel,
       language,
-      detailLevel
+      detailLevel,
+      theme
     }, () => {
       // Show success status banner
       statusBanner.style.display = "flex";

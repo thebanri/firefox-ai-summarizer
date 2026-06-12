@@ -2,6 +2,7 @@
 
 document.addEventListener("DOMContentLoaded", () => {
   const summarizeBtn = document.getElementById("summarize-btn");
+  const chatBtn = document.getElementById("chat-btn");
   const optionsBtn = document.getElementById("options-btn");
 
   // Summarize current page
@@ -11,6 +12,15 @@ document.addEventListener("DOMContentLoaded", () => {
       // Trigger summarization message
       chrome.tabs.sendMessage(tab.id, { action: "summarize_page" });
       // Close popup to let the user see the overlay slide in
+      window.close();
+    }
+  });
+
+  // Chat with current page
+  chatBtn.addEventListener("click", async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && tab.id) {
+      chrome.tabs.sendMessage(tab.id, { action: "chat_page" });
       window.close();
     }
   });

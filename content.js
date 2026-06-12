@@ -16,6 +16,7 @@ function createOverlay() {
   panelContainer.style.width = "0";
   panelContainer.style.height = "100vh";
   panelContainer.style.zIndex = "2147483647"; // Max z-index
+  panelContainer.style.pointerEvents = "none"; // Let clicks pass through by default
   document.body.appendChild(panelContainer);
 
   // Attach Shadow DOM for style isolation (Closed mode for higher security)
@@ -35,6 +36,37 @@ function createOverlay() {
       --card-bg: rgba(255, 255, 255, 0.03);
       --error: #ef4444;
       --success: #10b981;
+    }
+    :host(.theme-purple) {
+      --primary: #c084fc;
+      --primary-hover: #a855f7;
+      --primary-glow: rgba(192, 132, 252, 0.3);
+      --bg: rgba(20, 10, 30, 0.9);
+      --border: rgba(255, 255, 255, 0.1);
+    }
+    :host(.theme-blue) {
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --primary-glow: rgba(59, 130, 246, 0.3);
+      --bg: rgba(10, 15, 30, 0.9);
+    }
+    :host(.theme-tokyonight) {
+      --primary: #7aa2f7;
+      --primary-hover: #8caaee;
+      --primary-glow: rgba(122, 162, 247, 0.3);
+      --bg: rgba(26, 27, 38, 0.95);
+      --text: #c0caf5;
+      --card-bg: rgba(36, 40, 59, 0.8);
+      --border: rgba(122, 162, 247, 0.2);
+    }
+    :host(.theme-catppuccin) {
+      --primary: #cba6f7;
+      --primary-hover: #b4befe;
+      --primary-glow: rgba(203, 166, 247, 0.3);
+      --bg: rgba(30, 30, 46, 0.95);
+      --text: #cdd6f4;
+      --card-bg: rgba(49, 50, 68, 0.8);
+      --border: rgba(203, 166, 247, 0.2);
     }
 
     * {
@@ -60,6 +92,7 @@ function createOverlay() {
       color: var(--text);
       transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       z-index: 2147483647;
+      pointer-events: auto; /* Re-enable clicks for panel */
     }
 
     .panel.open {
@@ -248,6 +281,40 @@ function createOverlay() {
       font-size: 0.85rem;
     }
 
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      margin: 18px 0;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .summary-text table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    .summary-text th {
+      background: rgba(255, 255, 255, 0.05);
+      font-weight: 600;
+      color: #ffffff;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .summary-text td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      color: #e2e8f0;
+      vertical-align: top;
+    }
+
+    .summary-text tr:last-child td {
+      border-bottom: none;
+    }
+
     /* Loader */
     .loader-container {
       display: flex;
@@ -334,9 +401,136 @@ function createOverlay() {
     .btn-action:hover {
       background: var(--primary-hover);
     }
+
+    /* Chat UI Styles */
+    #chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    }
+    #chat-messages::-webkit-scrollbar {
+      width: 6px;
+    }
+    #chat-messages::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    .chat-msg {
+      max-width: 85%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    .chat-msg.user {
+      align-self: flex-end;
+      background: var(--primary);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+    .chat-msg.ai {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+    .chat-msg.ai .summary-text {
+      font-size: 0.95rem;
+    }
+    .chat-input-wrapper {
+      display: flex;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+    }
+    #chat-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+      resize: none;
+      min-height: 24px;
+      max-height: 120px;
+      padding: 4px;
+      outline: none;
+    }
+    #chat-send-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    #chat-send-btn:hover {
+      background: var(--primary-hover);
+    }
+    #chat-send-btn:disabled {
+      background: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+    #bubble {
+      position: fixed;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--bg);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--primary);
+      z-index: 2147483647;
+      user-select: none;
+      pointer-events: auto; /* Re-enable clicks for bubble */
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    #bubble:hover {
+      transform: scale(1.05);
+      box-shadow: 0 12px 40px var(--primary-glow);
+    }
+    #bubble svg {
+      width: 28px;
+      height: 28px;
+    }
+    #bubble.dragging {
+      transition: none;
+      opacity: 0.9;
+    }
   `;
 
   shadowRoot.appendChild(style);
+
+  // Load theme from storage
+  chrome.storage.local.get({ theme: "default" }, (items) => {
+    if (items.theme && items.theme !== "default") {
+      panelContainer.className = `theme-${items.theme}`;
+    }
+  });
 
   // Create Panel elements
   const panel = document.createElement("div");
@@ -359,6 +553,14 @@ function createOverlay() {
         <span class="brand-title">Zen AI Summary</span>
       </div>
       <div class="controls">
+        <button id="minimize-btn" class="btn-icon" title="Küçült">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <polyline points="4 14 10 14 10 20"/>
+            <polyline points="20 10 14 10 14 4"/>
+            <line x1="14" y1="10" x2="21" y2="3"/>
+            <line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+        </button>
         <button id="copy-btn" class="btn-icon" title="Özeti Kopyala">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
             <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
@@ -379,27 +581,139 @@ function createOverlay() {
         </button>
       </div>
     </div>
-    <div id="content-body" class="content-body">
+    <div id="content-body" class="content-body" style="display: flex; flex-direction: column;">
       <div id="loader" class="loader-container" style="display: none;">
         <div class="spinner"></div>
         <div id="loader-status" class="loader-text">İçerik analiz ediliyor...</div>
       </div>
-      <div id="result-container">
+      <div id="result-container" style="flex: 1;">
         <div id="source-banner" class="source-info" style="display: none;">
           <strong id="source-title">Sayfa Başlığı</strong>
           <span id="source-url">URL</span>
         </div>
         <div id="summary-output" class="summary-text"></div>
       </div>
+      <div id="chat-container" style="display: none;">
+        <div id="chat-messages"></div>
+        <div class="chat-input-wrapper">
+          <textarea id="chat-input" placeholder="Sayfa hakkında soru sor..." rows="1"></textarea>
+          <button id="chat-send-btn">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
   `;
 
   shadowRoot.appendChild(panel);
 
+  // Create Bubble element
+  const bubble = document.createElement("div");
+  bubble.id = "bubble";
+  bubble.title = "Zen AI'ı Aç";
+  bubble.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke-linecap="round" opacity="0.5"/>
+      <path d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6Z" stroke="url(#logoGrad2)" />
+      <defs>
+        <linearGradient id="logoGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#3b82f6" />
+          <stop offset="50%" stop-color="#8b5cf6" />
+          <stop offset="100%" stop-color="#ec4899" />
+        </linearGradient>
+      </defs>
+    </svg>
+  `;
+  shadowRoot.appendChild(bubble);
+
   // Set up event listeners
   shadowRoot.getElementById("close-btn").addEventListener("click", hideOverlay);
   shadowRoot.getElementById("settings-btn").addEventListener("click", () => {
     chrome.runtime.sendMessage({ action: "open_options" });
+  });
+
+  // Minimize logic
+  const minimizeBtn = shadowRoot.getElementById("minimize-btn");
+  let isDragging = false;
+  let dragStartX, dragStartY;
+  let bubbleX = window.innerWidth - 80;
+  let bubbleY = 40;
+
+  minimizeBtn.addEventListener("click", () => {
+    panel.classList.remove("open");
+    setTimeout(() => {
+      panelContainer.style.width = "100vw"; // Allow full screen for bubble dragging without breaking host bounds
+      bubble.style.display = "flex";
+      bubble.style.left = `${bubbleX}px`;
+      bubble.style.top = `${bubbleY}px`;
+    }, 400);
+  });
+
+  // Bubble dragging logic
+  bubble.addEventListener("mousedown", (e) => {
+    isDragging = false;
+    dragStartX = e.clientX - bubbleX;
+    dragStartY = e.clientY - bubbleY;
+    
+    const onMouseMove = (moveEvent) => {
+      isDragging = true;
+      bubble.classList.add("dragging");
+      bubbleX = moveEvent.clientX - dragStartX;
+      bubbleY = moveEvent.clientY - dragStartY;
+      
+      // Keep inside window bounds
+      bubbleX = Math.max(0, Math.min(window.innerWidth - 56, bubbleX));
+      bubbleY = Math.max(0, Math.min(window.innerHeight - 56, bubbleY));
+      
+      bubble.style.left = `${bubbleX}px`;
+      bubble.style.top = `${bubbleY}px`;
+    };
+
+    const onMouseUp = () => {
+      bubble.classList.remove("dragging");
+      
+      // Köşelere yapışma (Snap to corners) mantığı
+      if (isDragging) {
+        const padding = 24;
+        const bubbleSize = 56;
+        
+        // Ekranın hangi köşesine daha yakın olduğunu bul
+        const snapX = (bubbleX + bubbleSize/2 < window.innerWidth / 2) ? padding : window.innerWidth - bubbleSize - padding;
+        const snapY = (bubbleY + bubbleSize/2 < window.innerHeight / 2) ? padding : window.innerHeight - bubbleSize - padding;
+        
+        bubbleX = snapX;
+        bubbleY = snapY;
+        
+        // Yapışma anında yumuşak geçiş (animasyon) ekle
+        bubble.style.transition = "left 0.3s cubic-bezier(0.16, 1, 0.3, 1), top 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s, transform 0.2s";
+        bubble.style.left = `${bubbleX}px`;
+        bubble.style.top = `${bubbleY}px`;
+        
+        // Sürüklemeye devam edebilmek için geçişi eski haline geri döndür
+        setTimeout(() => {
+          bubble.style.transition = "transform 0.2s, box-shadow 0.2s";
+        }, 300);
+      }
+
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  });
+
+  // Bubble click (restore panel)
+  bubble.addEventListener("click", (e) => {
+    if (!isDragging) {
+      bubble.style.display = "none";
+      panelContainer.style.width = "400px";
+      setTimeout(() => {
+        panel.classList.add("open");
+      }, 10);
+    }
   });
 
   const copyBtn = shadowRoot.getElementById("copy-btn");
@@ -422,12 +736,113 @@ function createOverlay() {
       console.error("Metin kopyalanamadı:", err);
     }
   });
+
+  // Chat event listeners
+  const chatInput = shadowRoot.getElementById("chat-input");
+  const chatSendBtn = shadowRoot.getElementById("chat-send-btn");
+  
+  const sendChatMessage = () => {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    
+    appendChatMessage("user", text);
+    chatInput.value = "";
+    chatInput.style.height = "auto";
+    chatSendBtn.disabled = true;
+    
+    // Show AI typing indicator
+    const typingId = "typing-" + Date.now();
+    appendChatMessage("ai", "Düşünüyor...", typingId);
+    
+    chrome.runtime.sendMessage({
+      action: "chat_with_page",
+      text: currentPageText,
+      history: chatHistory,
+      message: text
+    }, (response) => {
+      const typingEl = shadowRoot.getElementById(typingId);
+      if (typingEl) typingEl.remove();
+      
+      chatSendBtn.disabled = false;
+      
+      if (!response) {
+        appendChatMessage("ai", "Hata: Sunucu ile iletişim kurulamadı.");
+        return;
+      }
+      
+      if (response.success) {
+        const replyHtml = parseMarkdown(response.reply);
+        appendChatMessage("ai", replyHtml, null, true);
+        chatHistory.push({ role: "user", content: text });
+        chatHistory.push({ role: "assistant", content: response.reply });
+      } else {
+        appendChatMessage("ai", `Hata: ${response.error}`);
+      }
+    });
+  };
+
+  chatSendBtn.addEventListener("click", sendChatMessage);
+  chatInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendChatMessage();
+    }
+  });
+  
+  chatInput.addEventListener("input", function() {
+    this.style.height = "auto";
+    this.style.height = (this.scrollHeight) + "px";
+  });
 }
 
+function appendChatMessage(sender, textOrHtml, id = null, isHtml = false) {
+  const messagesDiv = shadowRoot.getElementById("chat-messages");
+  const msgDiv = document.createElement("div");
+  msgDiv.className = `chat-msg ${sender}`;
+  if (id) msgDiv.id = id;
+  
+  if (isHtml) {
+    msgDiv.innerHTML = `<div class="summary-text">${textOrHtml}</div>`;
+  } else {
+    msgDiv.textContent = textOrHtml;
+  }
+  
+  messagesDiv.appendChild(msgDiv);
+  
+  // Akıllı Kaydırma (Smart Scrolling)
+  if (sender === "ai" && isHtml) {
+    // Yapay zekanın nihai cevabı geldiğinde, cevabın en üst kısmına odaklan
+    setTimeout(() => {
+      msgDiv.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  } else {
+    // Kullanıcı mesajı veya "Düşünüyor..." uyarısında en alta kaydır
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+}
+
+// Global chat state for this page
+let chatHistory = [];
+let currentPageText = "";
+
 // Show the overlay panel
-function showOverlay() {
+function showOverlay(mode = "summary") {
   createOverlay();
   
+  const resultContainer = shadowRoot.getElementById("result-container");
+  const chatContainer = shadowRoot.getElementById("chat-container");
+  const bubble = shadowRoot.getElementById("bubble");
+  
+  if (bubble) bubble.style.display = "none";
+
+  if (mode === "chat") {
+    resultContainer.style.display = "none";
+    chatContainer.style.display = "flex";
+  } else {
+    resultContainer.style.display = "block";
+    chatContainer.style.display = "none";
+  }
+
   // Make container visible
   panelContainer.style.width = "400px";
   
@@ -578,14 +993,42 @@ function parseMarkdown(markdown) {
   // Blockquotes (> text)
   html = html.replace(/^&gt;\s+(.+)$/gm, "<blockquote>$1</blockquote>");
 
-  // Format list items (unordered & ordered)
+  // Format list items and tables
   const lines = html.split("\n");
   const resultLines = [];
   let inUl = false;
   let inOl = false;
+  let inTable = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
+    
+    // Check for table row
+    const isTableRow = line.startsWith("|") && line.endsWith("|");
+    
+    if (isTableRow) {
+      if (inUl) { resultLines.push("</ul>"); inUl = false; }
+      if (inOl) { resultLines.push("</ol>"); inOl = false; }
+      
+      const cells = line.split("|").slice(1, -1).map(c => c.trim());
+      // Check if it's a separator row (---)
+      const isSeparator = cells.every(c => c.replace(/-/g, '').replace(/:/g, '').length === 0);
+      
+      if (!inTable && !isSeparator) {
+        resultLines.push('<div class="table-wrapper"><table>');
+        resultLines.push('<thead><tr>' + cells.map(c => `<th>${c}</th>`).join('') + '</tr></thead>');
+        resultLines.push('<tbody>');
+        inTable = true;
+      } else if (inTable && !isSeparator) {
+        resultLines.push('<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>');
+      }
+      continue;
+    } else {
+      if (inTable) {
+        resultLines.push('</tbody></table></div>');
+        inTable = false;
+      }
+    }
     
     // Unordered lists
     if (line.startsWith("- ") || line.startsWith("* ") || line.startsWith("+ ")) {
@@ -628,6 +1071,7 @@ function parseMarkdown(markdown) {
   
   if (inUl) resultLines.push("</ul>");
   if (inOl) resultLines.push("</ol>");
+  if (inTable) resultLines.push("</tbody></table></div>");
 
   html = resultLines.join("\n");
 
@@ -641,7 +1085,8 @@ function parseMarkdown(markdown) {
       p.startsWith("<ol") || 
       p.startsWith("<li") || 
       p.startsWith("<pre") || 
-      p.startsWith("<blockquote")
+      p.startsWith("<blockquote") ||
+      p.startsWith("<div class=\"table")
     ) {
       return p;
     }
@@ -658,7 +1103,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const pageData = extractPageText();
     
     if (pageData.text.length < 50) {
-      showOverlay();
+      showOverlay("summary");
       displayResult({
         error: "Sayfada özetlenebilecek yeterli metin bulunamadı. Sayfa boş olabilir.",
         title: pageData.title,
@@ -730,5 +1175,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       error: isMissing ? null : request.error,
       isApiKeyMissing: isMissing
     });
+  }
+
+  if (request.action === "chat_page") {
+    const pageData = extractPageText();
+    currentPageText = pageData.text;
+    chatHistory = [];
+    
+    showOverlay("chat");
+    shadowRoot.getElementById("loader").style.display = "none";
+    shadowRoot.getElementById("chat-messages").innerHTML = "";
+    
+    const brandTitle = shadowRoot.querySelector(".brand-title");
+    brandTitle.textContent = "Zen AI Chat";
+    
+    if (pageData.text.length < 50) {
+      appendChatMessage("ai", "Sayfada okunabilecek yeterli metin bulamadım, ancak genel sorular sorabilirsiniz.");
+    } else {
+      appendChatMessage("ai", "Merhaba! Bu sayfanın içeriğini inceledim. Bana sayfayla ilgili istediğiniz soruyu sorabilirsiniz.");
+    }
   }
 });

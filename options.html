@@ -222,6 +222,7 @@
         <select id="provider">
           <option value="gemini">Google Gemini</option>
           <option value="groq">Groq Cloud</option>
+          <option value="openrouter">OpenRouter</option>
         </select>
       </div>
 
@@ -257,6 +258,27 @@
         </select>
       </div>
 
+      <div id="openrouter-group" class="form-group" style="display: none;">
+        <label for="openrouter-key">OpenRouter API Anahtarı</label>
+        <div class="input-wrapper">
+          <input type="password" id="openrouter-key" placeholder="sk-or-v1-...">
+          <button type="button" id="toggle-openrouter-password" class="password-toggle">Göster</button>
+        </div>
+        <div class="help-text">
+          OpenRouter API anahtarınız yoksa <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a> üzerinden alabilirsiniz.
+        </div>
+        <button type="button" id="fetch-models-btn" class="btn-save" style="margin-top: 12px; padding: 8px;">
+          Modelleri Getir
+        </button>
+      </div>
+
+      <div id="openrouter-model-group" class="form-group" style="display: none;">
+        <label for="openrouter-model">OpenRouter Modeli</label>
+        <select id="openrouter-model">
+          <!-- Modeller API'den doldurulacak -->
+        </select>
+      </div>
+
       <div class="form-group">
         <label for="language">Özet Dili</label>
         <select id="language">
@@ -265,6 +287,17 @@
           <option value="German">Deutsch</option>
           <option value="French">Français</option>
           <option value="Spanish">Español</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="theme">Arayüz Teması</label>
+        <select id="theme">
+          <option value="default">Varsayılan (Zen)</option>
+          <option value="purple">Mor (Purple)</option>
+          <option value="blue">Mavi (Blue)</option>
+          <option value="tokyonight">Tokyo Night</option>
+          <option value="catppuccin">Catppuccin</option>
         </select>
       </div>
 

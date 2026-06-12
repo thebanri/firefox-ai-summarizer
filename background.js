@@ -45,6 +45,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
     return true; // Keep message channel open for async response
   }
+
+  if (request.action === "chat_with_page") {
+    requestChat(request.text, request.history, request.message)
+      .then(reply => {
+        sendResponse({ success: true, reply });
+      })
+      .catch(error => {
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
   
   if (request.action === "open_options") {
     chrome.runtime.openOptionsPage();
@@ -161,6 +172,8 @@ async function requestSummary(text, pageTitle) {
     apiKey: "", // legacy fallback
     groqApiKey: "",
     groqModel: "llama-3.3-70b-versatile",
+    openrouterApiKey: "",
+    openrouterModel: "",
     language: "Turkish",
     detailLevel: "detailed"
   });
@@ -181,6 +194,14 @@ async function requestSummary(text, pageTitle) {
       throw new Error("API_KEY_MISSING");
     }
     return requestSummaryFromGroq(text, prompt, settings.groqApiKey, settings.groqModel);
+  } else if (provider === "openrouter") {
+    if (!settings.openrouterApiKey) {
+      throw new Error("API_KEY_MISSING");
+    }
+    if (!settings.openrouterModel) {
+      throw new Error("Lütfen seçeneklerden OpenRouter modelini seçin.");
+    }
+    return requestSummaryFromOpenRouter(text, prompt, settings.openrouterApiKey, settings.openrouterModel);
   } else {
     throw new Error(`Bilinmeyen sağlayıcı: ${provider}`);
   }
@@ -309,6 +330,55 @@ async function requestSummaryFromGroq(text, prompt, apiKey, model) {
   return summaryText;
 }
 
+// Request summary from OpenRouter API
+async function requestSummaryFromOpenRouter(text, prompt, apiKey, model) {
+  console.log(`[Zen AI Summarizer] OpenRouter API isteği başlatılıyor (Model: ${model})...`);
+  const apiEndpoint = "https://openrouter.ai/api/v1/chat/completions";
+
+  const response = await fetch(apiEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer": "https://github.com/thebanri/firefox-ai-summarizer", // Required by OpenRouter
+      "X-Title": "Zen AI Summarizer" // Optional
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        {
+          role: "system",
+          content: prompt
+        },
+        {
+          role: "user",
+          content: `Lütfen aşağıdaki web sayfası içeriğini özetle:\n\n${text}`
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const apiError = errorData.error?.message || response.statusText;
+    throw new Error(`OpenRouter API Hatası: ${apiError}`);
+  }
+
+  const data = await response.json();
+  let summaryText = data.choices?.[0]?.message?.content;
+
+  if (!summaryText) {
+    throw new Error("OpenRouter API'den boş yanıt döndü.");
+  }
+
+  const finishReason = data.choices?.[0]?.finish_reason;
+  if (finishReason && finishReason === "length") {
+    summaryText += `\n\n*(Not: Özet oluşturma işlemi yarıda kesildi. Neden: Maksimum uzunluğa ulaşıldı)*`;
+  }
+
+  return summaryText;
+}
+
 // Build prompt based on settings
 function buildPrompt(language, detailLevel, pageTitle) {
   let detailInstruction = "";
@@ -332,4 +402,169 @@ function buildPrompt(language, detailLevel, pageTitle) {
 4. Markdown biçimlendirmesini (kalın kelimeler, listeler, alt başlıklar) kullanarak temiz, şık ve okunabilirliği çok yüksek bir çıktı üret.
 5. Gereksiz girişler (örn. "İşte özetiniz:", "Makale şunları anlatıyor:") yazmadan doğrudan özetle başla.
 6. Reklamları ve ilgisiz metinleri göz ardı et, tamamen teknik doğruluğa ve önemli detaylara odaklan.`;
+}
+
+// Chat functions
+async function requestChat(pageText, history, userMessage) {
+  const settings = await chrome.storage.local.get({
+    provider: "gemini",
+    geminiApiKey: "",
+    apiKey: "", // legacy
+    groqApiKey: "",
+    groqModel: "llama-3.3-70b-versatile",
+    openrouterApiKey: "",
+    openrouterModel: "",
+    language: "Turkish"
+  });
+
+  const provider = settings.provider || "gemini";
+  
+  const systemPrompt = `Sen profesyonel, akıcı ve doğal konuşan bir yapay zeka asistanısın. Görevin, kullanıcının bulunduğu web sayfası hakkında sorularını cevaplamak. Cevaplarını kesinlikle hatasız, doğal ve akıcı bir "${settings.language}" dilinde ver. 
+
+ÖNEMLİ KURALLAR:
+1. HALÜSİNASYON YASAK: Asla rastgele harfler veya anlamsız alfabeler kullanma.
+2. SADECE SORUYA ODAKLAN (ÇOK ÖNEMLİ): Kullanıcı "özetle", "liste yap" dese bile, BÜTÜN SAYFAYI VEYA TÜM ÖZELLİKLERİ ASLA özetleme. Sadece ve sadece kullanıcının sorduğu spesifik konuyu (örneğin "server kurabilir miyim?") cevapla. Cevapla alakasız donanım özelliklerini listeleme.
+3. SOHBET AKIŞI: Bir insan gibi konuş. "İşte özellikler:", "Kısa Cevap:" gibi robotik kalıplardan kaçın.
+4. KISA VE NET OL: Sana verilen bağlamı (sayfa içeriğini) sadece bilgiyi teyit etmek için kullan, kullanıcıya geri kusma.
+5. TEKRARA DÜŞME: Aynı başlıkları ve kapanış cümlelerini tekrar etme.
+
+Aşağıdaki metin şu anda kullanıcının bulunduğu sayfanın içeriğidir (Bu içeriği sadece soruları cevaplamak için arka plan bilgisi olarak kullan, asla doğrudan listeleme/okuma):
+---
+${pageText}
+---`;
+
+  if (provider === "gemini") {
+    const key = settings.geminiApiKey || settings.apiKey;
+    if (!key) throw new Error("API_KEY_MISSING");
+    return requestChatFromGemini(systemPrompt, history, userMessage, key);
+  } else if (provider === "groq") {
+    if (!settings.groqApiKey) throw new Error("API_KEY_MISSING");
+    return requestChatFromGroq(systemPrompt, history, userMessage, settings.groqApiKey, settings.groqModel);
+  } else if (provider === "openrouter") {
+    if (!settings.openrouterApiKey) throw new Error("API_KEY_MISSING");
+    if (!settings.openrouterModel) throw new Error("Lütfen seçeneklerden OpenRouter modelini seçin.");
+    return requestChatFromOpenRouter(systemPrompt, history, userMessage, settings.openrouterApiKey, settings.openrouterModel);
+  } else {
+    throw new Error(`Bilinmeyen sağlayıcı: ${provider}`);
+  }
+}
+
+async function requestChatFromGemini(systemPrompt, history, userMessage, apiKey) {
+  const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+
+  // Map history to Gemini format
+  const contents = [];
+  
+  // Gemini doesn't use "system" role in contents directly (unless systemInstruction is used, but for simplicity we append to first user message or use systemInstruction)
+  const formattedContents = history.map(msg => ({
+    role: msg.role === "assistant" ? "model" : "user",
+    parts: [{ text: msg.content }]
+  }));
+  
+  formattedContents.push({
+    role: "user",
+    parts: [{ text: userMessage }]
+  });
+
+  const response = await fetch(apiEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: systemPrompt }]
+      },
+      contents: formattedContents,
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 2048
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const apiError = errorData.error?.message || response.statusText;
+    throw new Error(`Gemini API Hatası: ${apiError}`);
+  }
+
+  const data = await response.json();
+  const candidate = data.candidates?.[0];
+  let replyText = candidate?.content?.parts?.[0]?.text;
+
+  if (!replyText) throw new Error("Yapay zekadan boş yanıt döndü.");
+  return replyText;
+}
+
+async function requestChatFromGroq(systemPrompt, history, userMessage, apiKey, model) {
+  const apiEndpoint = "https://api.groq.com/openai/v1/chat/completions";
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...history,
+    { role: "user", content: userMessage }
+  ];
+
+  const response = await fetch(apiEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: messages,
+      temperature: 0.3,
+      max_tokens: 2048
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const apiError = errorData.error?.message || response.statusText;
+    throw new Error(`Groq API Hatası: ${apiError}`);
+  }
+
+  const data = await response.json();
+  let replyText = data.choices?.[0]?.message?.content;
+  if (!replyText) throw new Error("Groq API'den boş yanıt döndü.");
+  return replyText;
+}
+
+async function requestChatFromOpenRouter(systemPrompt, history, userMessage, apiKey, model) {
+  const apiEndpoint = "https://openrouter.ai/api/v1/chat/completions";
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...history,
+    { role: "user", content: userMessage }
+  ];
+
+  const response = await fetch(apiEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer": "https://github.com/thebanri/firefox-ai-summarizer",
+      "X-Title": "Zen AI Summarizer"
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: messages,
+      temperature: 0.3
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    const apiError = errorData.error?.message || response.statusText;
+    throw new Error(`OpenRouter API Hatası: ${apiError}`);
+  }
+
+  const data = await response.json();
+  let replyText = data.choices?.[0]?.message?.content;
+  if (!replyText) throw new Error("OpenRouter API'den boş yanıt döndü.");
+  return replyText;
 }
