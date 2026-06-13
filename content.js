@@ -207,7 +207,7 @@ function createOverlay() {
     .summary-text p {
       margin-bottom: 16px;
       color: #e2e8f0;
-      text-align: justify;
+      text-align: left;
     }
 
     .summary-text h1, 
@@ -600,6 +600,20 @@ function createOverlay() {
         <span class="brand-title">Zen AI Summary</span>
       </div>
       <div class="controls">
+        <button id="summary-switch-btn" class="btn-icon" title="Özete Geç" style="display: none;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </button>
+        <button id="chat-switch-btn" class="btn-icon" title="Sohbete Geç">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
         <button id="minimize-btn" class="btn-icon" title="Küçült">
           <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
             <polyline points="4 14 10 14 10 20"/>
@@ -679,6 +693,19 @@ function createOverlay() {
   shadowRoot.getElementById("close-btn").addEventListener("click", hideOverlay);
   shadowRoot.getElementById("settings-btn").addEventListener("click", () => {
     chrome.runtime.sendMessage({ action: "open_options" });
+  });
+
+  shadowRoot.getElementById("chat-switch-btn").addEventListener("click", () => {
+    showOverlay("chat");
+  });
+
+  shadowRoot.getElementById("summary-switch-btn").addEventListener("click", () => {
+    const summaryOutput = shadowRoot.getElementById("summary-output");
+    if (!summaryOutput.innerHTML.trim()) {
+      startPageSummarization();
+    } else {
+      showOverlay("summary");
+    }
   });
 
   // Minimize logic
@@ -851,7 +878,7 @@ function createOverlay() {
     chrome.runtime.sendMessage({
       action: "chat_with_page",
       text: currentPageText,
-      history: chatHistory,
+      history: chatHistory.slice(-10),
       message: text
     }, (response) => {
       const typingEl = shadowRoot.getElementById(typingId);
@@ -878,11 +905,14 @@ function createOverlay() {
 
   chatSendBtn.addEventListener("click", sendChatMessage);
   chatInput.addEventListener("keydown", (e) => {
+    e.stopPropagation();
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendChatMessage();
     }
   });
+  chatInput.addEventListener("keyup", (e) => e.stopPropagation());
+  chatInput.addEventListener("keypress", (e) => e.stopPropagation());
   
   chatInput.addEventListener("input", function() {
     this.style.height = "auto";
@@ -966,9 +996,17 @@ function showOverlay(mode = "summary") {
   if (mode === "chat") {
     resultContainer.style.display = "none";
     chatContainer.style.display = "flex";
+    if (shadowRoot.getElementById("chat-switch-btn")) {
+      shadowRoot.getElementById("chat-switch-btn").style.display = "none";
+      shadowRoot.getElementById("summary-switch-btn").style.display = "flex";
+    }
   } else {
     resultContainer.style.display = "block";
     chatContainer.style.display = "none";
+    if (shadowRoot.getElementById("chat-switch-btn")) {
+      shadowRoot.getElementById("chat-switch-btn").style.display = "flex";
+      shadowRoot.getElementById("summary-switch-btn").style.display = "none";
+    }
   }
 
   // Make container visible
@@ -1121,29 +1159,42 @@ async function extractPageTextAsync() {
     console.log("Varyasyon bilgisi alınamadı:", e);
   }
 
-  // Clone to avoid breaking original page elements
-  const bodyClone = document.body.cloneNode(true);
-  
-  // Remove interactive and structural elements we don't want summarized
-  const elementsToRemove = bodyClone.querySelectorAll(
-    "script, style, nav, footer, header, iframe, noscript, svg, select, option, button, [role='banner'], [role='navigation']"
-  );
-  elementsToRemove.forEach(el => el.remove());
-  
-  // Try to find structural tags, otherwise use whole document
-  // On feed sites (like daily.dev), querySelector("article") might just pick the first tiny feed card.
-  // Instead, find the article or main tag with the most text!
-  const candidates = Array.from(bodyClone.querySelectorAll("article, main, [role='main']"));
-  let mainContent = bodyClone;
-  if (candidates.length > 0) {
-    mainContent = candidates.reduce((a, b) => {
-      const aLen = (a.innerText || "").length;
-      const bLen = (b.innerText || "").length;
-      return aLen > bLen ? a : b;
-    });
+  let text = "";
+
+  try {
+    const documentClone = document.cloneNode(true);
+    const reader = new Readability(documentClone);
+    const article = reader.parse();
+    if (article && article.textContent) {
+      text = article.textContent;
+    }
+  } catch (e) {
+    console.log("Readability parse failed, using fallback:", e);
   }
-  
-  let text = mainContent.innerText || mainContent.textContent || "";
+
+  if (!text.trim()) {
+    // Clone to avoid breaking original page elements
+    const bodyClone = document.body.cloneNode(true);
+    
+    // Remove interactive and structural elements we don't want summarized
+    const elementsToRemove = bodyClone.querySelectorAll(
+      "script, style, nav, footer, header, iframe, noscript, svg, select, option, button, [role='banner'], [role='navigation']"
+    );
+    elementsToRemove.forEach(el => el.remove());
+    
+    // Try to find structural tags, otherwise use whole document
+    const candidates = Array.from(bodyClone.querySelectorAll("article, main, [role='main']"));
+    let mainContent = bodyClone;
+    if (candidates.length > 0) {
+      mainContent = candidates.reduce((a, b) => {
+        const aLen = (a.innerText || "").length;
+        const bLen = (b.innerText || "").length;
+        return aLen > bLen ? a : b;
+      });
+    }
+    
+    text = mainContent.innerText || mainContent.textContent || "";
+  }
   
   // Clean whitespace
   text = text.replace(/\s+/g, " ").trim();
@@ -1161,200 +1212,75 @@ async function extractPageTextAsync() {
 function parseMarkdown(markdown) {
   if (!markdown) return "";
   
-  // Escape HTML tags to prevent XSS
+  if (typeof marked !== "undefined") {
+    try {
+      return marked.parse(markdown);
+    } catch(e) {
+      console.error("marked parse error", e);
+    }
+  }
+  
+  // Fallback
   let html = markdown
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  // Code blocks (```code```)
-  html = html.replace(/```(?:(\w+)\n)?([\s\S]*?)```/g, (match, lang, code) => {
-    const language = lang ? lang : 'text';
-    return `
-      <div class="code-block-wrapper">
-        <div class="code-block-header">
-          <span>${language}</span>
-          <button class="code-copy-btn">
-            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-              <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
-              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
-            </svg>
-            Kopyala
-          </button>
-        </div>
-        <pre><code>${code}</code></pre>
-      </div>
-    `;
-  });
-  
-  // Inline code (`code`)
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-  // Headers (#### Header to # Header)
-  html = html.replace(/^####\s+(.+)$/gm, "<h4>$1</h4>");
-  html = html.replace(/^###\s+(.+)$/gm, "<h3>$1</h3>");
-  html = html.replace(/^##\s+(.+)$/gm, "<h2>$1</h2>");
-  html = html.replace(/^#\s+(.+)$/gm, "<h1>$1</h1>");
-
-  // Bold (**bold** or __bold__)
   html = html.replace(/\*\*(?!\s)([\s\S]*?)(?<!\s)\*\*/g, "<strong>$1</strong>");
-  html = html.replace(/__(?!\s)([\s\S]*?)(?<!\s)__/g, "<strong>$1</strong>");
-  
-  // Italic (*italic* or _italic_)
   html = html.replace(/\*(?!\s)([\s\S]*?)(?<!\s)\*/g, "<em>$1</em>");
-  html = html.replace(/_(?!\s)([\s\S]*?)(?<!\s)_/g, "<em>$1</em>");
-
-  // Blockquotes (> text)
-  html = html.replace(/^&gt;\s+(.+)$/gm, "<blockquote>$1</blockquote>");
-
-  // Format list items and tables
-  const lines = html.split("\n");
-  const resultLines = [];
-  let inUl = false;
-  let inOl = false;
-  let inTable = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    
-    // Check for table row
-    const isTableRow = line.startsWith("|") && line.endsWith("|");
-    
-    if (isTableRow) {
-      if (inUl) { resultLines.push("</ul>"); inUl = false; }
-      if (inOl) { resultLines.push("</ol>"); inOl = false; }
-      
-      const cells = line.split("|").slice(1, -1).map(c => c.trim());
-      // Check if it's a separator row (---)
-      const isSeparator = cells.every(c => c.replace(/-/g, '').replace(/:/g, '').length === 0);
-      
-      if (!inTable && !isSeparator) {
-        resultLines.push('<div class="table-wrapper"><table>');
-        resultLines.push('<thead><tr>' + cells.map(c => `<th>${c}</th>`).join('') + '</tr></thead>');
-        resultLines.push('<tbody>');
-        inTable = true;
-      } else if (inTable && !isSeparator) {
-        resultLines.push('<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>');
-      }
-      continue;
-    } else {
-      if (inTable) {
-        resultLines.push('</tbody></table></div>');
-        inTable = false;
-      }
-    }
-    
-    // Unordered lists
-    if (line.startsWith("- ") || line.startsWith("* ") || line.startsWith("+ ")) {
-      if (inOl) {
-        resultLines.push("</ol>");
-        inOl = false;
-      }
-      if (!inUl) {
-        resultLines.push("<ul>");
-        inUl = true;
-      }
-      resultLines.push(`<li>${line.substring(2)}</li>`);
-    } 
-    // Ordered lists (e.g. 1. Item)
-    else if (/^\d+\.\s+/.test(line)) {
-      if (inUl) {
-        resultLines.push("</ul>");
-        inUl = false;
-      }
-      if (!inOl) {
-        resultLines.push("<ol>");
-        inOl = true;
-      }
-      const content = line.replace(/^\d+\.\s+/, "");
-      resultLines.push(`<li>${content}</li>`);
-    } 
-    // Plain line
-    else {
-      if (inUl) {
-        resultLines.push("</ul>");
-        inUl = false;
-      }
-      if (inOl) {
-        resultLines.push("</ol>");
-        inOl = false;
-      }
-      resultLines.push(lines[i]); // Keep original formatting line
-    }
-  }
-  
-  if (inUl) resultLines.push("</ul>");
-  if (inOl) resultLines.push("</ol>");
-  if (inTable) resultLines.push("</tbody></table></div>");
-
-  html = resultLines.join("\n");
-
-  // Split into paragraphs (avoid wrapping lists, headers, blocks in paragraphs)
-  html = html.split(/\n{2,}/).map(p => {
-    p = p.trim();
-    if (!p) return "";
-    if (
-      p.startsWith("<h") || 
-      p.startsWith("<ul") || 
-      p.startsWith("<ol") || 
-      p.startsWith("<li") || 
-      p.startsWith("<pre") || 
-      p.startsWith("<blockquote") ||
-      p.startsWith("<div class=\"table")
-    ) {
-      return p;
-    }
-    return `<p>${p}</p>`;
-  }).join("");
-
+  html = html.replace(/\n/g, "<br>");
   return html;
+}
+
+function startPageSummarization() {
+  extractPageTextAsync().then(pageData => {
+    if (pageData.text.length < 50) {
+      showOverlay("summary");
+      displayResult({
+        error: "Sayfada özetlenebilecek yeterli metin bulunamadı. Sayfa boş olabilir.",
+        title: pageData.title,
+        url: pageData.url
+      });
+      return;
+    }
+
+    showLoader("Sayfa içeriği analiz ediliyor...");
+
+    // Send text to background script to call Gemini API
+    chrome.runtime.sendMessage({
+      action: "summarize_current_page_text",
+      text: pageData.text,
+      title: pageData.title
+    }, (response) => {
+      if (!response) {
+        displayResult({ error: "Arka plan servisi ile iletişim kurulamadı." });
+        return;
+      }
+      if (response.success) {
+        const summaryHtml = parseMarkdown(response.summary);
+        displayResult({
+          title: pageData.title,
+          url: pageData.url,
+          summaryHtml: summaryHtml
+        });
+      } else {
+        const isMissing = response.error && response.error.includes("API_KEY_MISSING");
+        displayResult({
+          error: isMissing ? null : response.error,
+          isApiKeyMissing: isMissing,
+          title: pageData.title,
+          url: pageData.url
+        });
+      }
+    });
+  });
 }
 
 // Listen for messages from background.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "summarize_page") {
     // Start page summarization
-    extractPageTextAsync().then(pageData => {
-      if (pageData.text.length < 50) {
-        showOverlay("summary");
-        displayResult({
-          error: "Sayfada özetlenebilecek yeterli metin bulunamadı. Sayfa boş olabilir.",
-          title: pageData.title,
-          url: pageData.url
-        });
-        return;
-      }
-
-      showLoader("Sayfa içeriği analiz ediliyor...");
-
-      // Send text to background script to call Gemini API
-      chrome.runtime.sendMessage({
-        action: "summarize_current_page_text",
-        text: pageData.text,
-        title: pageData.title
-      }, (response) => {
-        if (!response) {
-          displayResult({ error: "Arka plan servisi ile iletişim kurulamadı." });
-          return;
-        }
-        if (response.success) {
-          const summaryHtml = parseMarkdown(response.summary);
-          displayResult({
-            title: pageData.title,
-            url: pageData.url,
-            summaryHtml: summaryHtml
-          });
-        } else {
-          const isMissing = response.error && response.error.includes("API_KEY_MISSING");
-          displayResult({
-            error: isMissing ? null : response.error,
-            isApiKeyMissing: isMissing,
-            title: pageData.title,
-            url: pageData.url
-          });
-        }
-      });
-    });
+    startPageSummarization();
   }
 
   if (request.action === "summarize_link_start") {
