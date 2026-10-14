@@ -17,3 +17,4 @@ package-lock.json
 scratch/
 test_*.js
 debug_*.js
+*.zip

@@ -15,6 +15,13 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// Detect SPA URL changes
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url) {
+    chrome.tabs.sendMessage(tabId, { action: "url_changed", url: changeInfo.url }).catch(() => {});
+  }
+});
+
 // Listen for context menu clicks
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (!tab || !tab.id) return;
@@ -489,13 +496,14 @@ async function requestChat(pageText, history, userMessage) {
   const systemPrompt = `Sen profesyonel, akıcı ve doğal konuşan bir yapay zeka asistanısın. Görevin, kullanıcının bulunduğu web sayfası hakkında sorularını cevaplamak. Cevaplarını kesinlikle hatasız, doğal ve akıcı bir "${settings.language}" dilinde ver. 
 
 ÖNEMLİ KURALLAR:
-1. HALÜSİNASYON YASAK: Asla rastgele harfler veya anlamsız alfabeler kullanma.
-2. SADECE SORUYA ODAKLAN (ÇOK ÖNEMLİ): Kullanıcı "özetle", "liste yap" dese bile, BÜTÜN SAYFAYI VEYA TÜM ÖZELLİKLERİ ASLA özetleme. Sadece ve sadece kullanıcının sorduğu spesifik konuyu (örneğin "server kurabilir miyim?") cevapla. Cevapla alakasız donanım özelliklerini listeleme.
-3. SOHBET AKIŞI: Bir insan gibi konuş. "İşte özellikler:", "Kısa Cevap:" gibi robotik kalıplardan kaçın.
-4. KISA VE NET OL: Sana verilen bağlamı (sayfa içeriğini) sadece bilgiyi teyit etmek için kullan, kullanıcıya geri kusma.
-5. TEKRARA DÜŞME: Aynı başlıkları ve kapanış cümlelerini tekrar etme.
+1. YABANCI DİL YASAĞI: Kullanıcının dilinden ("${settings.language}") ASLA şaşma. Özellikle sayıların veya para birimlerinin (USD vb.) sonuna Japonca ("です", "ます" vb.) veya Çince gibi alakasız dillerden harfler, ekler veya karakterler KESİNLİKLE ekleme.
+2. GİZLİ GRAFİK VERİLERİ (ÇOK ÖNEMLİ): Sana verilen metnin en sonunda "[GİZLİ İPUÇLARI / GRAFİK VERİLERİ]" gibi bir bölüm varsa, buradaki sayılar ve veriler kullanıcının o an fareyle üzerine geldiği grafiklerin içindeki çok kritik verilerdir. Kullanıcı sana bir modelin, grafiğin veya bir şeyin "kaç olduğunu / değerini" sorarsa ve ana metinde bulamazsan, kesinlikle bu gizli ipuçları kısmındaki verileri o konuyla doğrudan ilişkilendir ve varsayım yaparak cevapla (Örn: "Sayfadaki verilere göre 95K Input, 7.8K Output görünmektedir" gibi). "Bulamadım" demek yerine bu gizli verileri kullan.
+3. HALÜSİNASYON YASAK: Asla rastgele harfler veya anlamsız alfabeler kullanma.
+4. SADECE SORUYA ODAKLAN: BÜTÜN SAYFAYI VEYA TÜM ÖZELLİKLERİ ASLA özetleme. Sadece ve sadece kullanıcının sorduğu spesifik konuyu cevapla.
+5. SOHBET AKIŞI: Bir insan gibi konuş. "İşte özellikler:", "Kısa Cevap:" gibi robotik kalıplardan kaçın.
+6. KISA VE NET OL: Sana verilen bağlamı sadece bilgiyi teyit etmek için kullan, kullanıcıya geri kusma.
 
-Aşağıdaki metin şu anda kullanıcının bulunduğu sayfanın içeriğidir (Bu içeriği sadece soruları cevaplamak için arka plan bilgisi olarak kullan, asla doğrudan listeleme/okuma):
+Aşağıdaki metin şu anda kullanıcının bulunduğu sayfanın içeriğidir (Bu içeriği sadece soruları cevaplamak için arka plan bilgisi olarak kullan, doğrudan okuma):
 ---
 ${pageText}
 ---`;

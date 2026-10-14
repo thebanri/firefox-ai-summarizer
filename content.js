@@ -840,7 +840,7 @@ function createOverlay() {
   const chatInput = shadowRoot.getElementById("chat-input");
   const chatSendBtn = shadowRoot.getElementById("chat-send-btn");
   
-  const sendChatMessage = () => {
+  const sendChatMessage = async () => {
     let text = chatInput.value.trim();
     if (!text) return;
     
@@ -866,6 +866,11 @@ function createOverlay() {
       text = text.replace("/5-yaşındakine-anlat", "Aşağıdaki konuyu 5 yaşındaki bir çocuğun anlayabileceği kadar basit, analojiler kullanarak açıkla:").trim();
     }
     
+    if (!currentPageText) {
+      const pageData = await extractPageTextAsync();
+      currentPageText = pageData.text;
+    }
+
     appendChatMessage("user", originalText);
     chatInput.value = "";
     chatInput.style.height = "auto";
@@ -1159,41 +1164,54 @@ async function extractPageTextAsync() {
     console.log("Varyasyon bilgisi alınamadı:", e);
   }
 
+
+
   let text = "";
 
   try {
     const documentClone = document.cloneNode(true);
     const reader = new Readability(documentClone);
     const article = reader.parse();
-    if (article && article.textContent) {
+    // Only trust Readability if it extracted a meaningful amount of text (e.g. > 250 chars)
+    // Dashboards often fail Readability parsing.
+    if (article && article.textContent && article.textContent.trim().length > 250) {
       text = article.textContent;
     }
   } catch (e) {
     console.log("Readability parse failed, using fallback:", e);
   }
 
-  if (!text.trim()) {
-    // Clone to avoid breaking original page elements
-    const bodyClone = document.body.cloneNode(true);
-    
-    // Remove interactive and structural elements we don't want summarized
-    const elementsToRemove = bodyClone.querySelectorAll(
-      "script, style, nav, footer, header, iframe, noscript, svg, select, option, button, [role='banner'], [role='navigation']"
-    );
-    elementsToRemove.forEach(el => el.remove());
-    
-    // Try to find structural tags, otherwise use whole document
-    const candidates = Array.from(bodyClone.querySelectorAll("article, main, [role='main']"));
-    let mainContent = bodyClone;
-    if (candidates.length > 0) {
-      mainContent = candidates.reduce((a, b) => {
-        const aLen = (a.innerText || "").length;
-        const bLen = (b.innerText || "").length;
-        return aLen > bLen ? a : b;
+  // Fallback for Web Apps and Dashboards (like Groq Console)
+  if (!text.trim() || text.trim().length <= 250) {
+    try {
+      // Düzgün formatlanmış görünür tablo/metin verisi (native innerText)
+      text = document.body.innerText || "";
+      
+      // Native innerText'in atladığı SVG, Tooltip ve Aria etiketlerini topla
+      let extraTips = [];
+      const tips = document.querySelectorAll("[aria-label], [title], [data-tooltip], [data-tippy-content], svg text");
+      tips.forEach(el => {
+        // Eklentinin kendi UI parçalarını atla
+        if (el.closest('#zen-ai-summarizer-container') || el.closest('#zen-ai-selection-icon')) return;
+        
+        if (el.tagName.toLowerCase() === 'text') {
+          const content = el.textContent.trim();
+          if (content) extraTips.push(`Grafik İçi: ${content}`);
+        } else {
+          const label = el.getAttribute("aria-label");
+          const title = el.getAttribute("title");
+          if (label) extraTips.push(label);
+          if (title && title !== label) extraTips.push(title);
+        }
       });
+      
+      if (extraTips.length > 0) {
+        text += "\n\n[GİZLİ İPUÇLARI / GRAFİK VERİLERİ]:\n" + [...new Set(extraTips)].join(" | ");
+      }
+    } catch(e) {
+      console.error("Fallback error:", e);
+      text = document.body.textContent || "";
     }
-    
-    text = mainContent.innerText || mainContent.textContent || "";
   }
   
   // Clean whitespace
@@ -1281,6 +1299,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "summarize_page") {
     // Start page summarization
     startPageSummarization();
+  }
+
+  if (request.action === "url_changed") {
+    chatHistory = [];
+    currentPageText = "";
+    isChatLoaded = false;
+    
+    if (shadowRoot) {
+      const chatMessages = shadowRoot.getElementById("chat-messages");
+      if (chatMessages) chatMessages.innerHTML = "";
+      
+      const summaryOutput = shadowRoot.getElementById("summary-output");
+      if (summaryOutput) summaryOutput.innerHTML = "";
+      
+      const sourceBanner = shadowRoot.getElementById("source-banner");
+      if (sourceBanner) sourceBanner.style.display = "none";
+    }
   }
 
   if (request.action === "summarize_link_start") {
