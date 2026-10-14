@@ -223,7 +223,7 @@
           <option value="gemini">Google Gemini</option>
           <option value="groq">Groq Cloud</option>
           <option value="openrouter">OpenRouter</option>
-          <option value="github">GitHub Models</option>
+          <option value="nvidia">NVIDIA NIM</option>
         </select>
       </div>
 
@@ -254,8 +254,8 @@
         <select id="groq-model">
           <option value="llama-3.3-70b-versatile">Llama 3.3 70B (Önerilen)</option>
           <option value="llama-3.1-8b-instant">Llama 3.1 8B (Hızlı)</option>
-          <option value="gemma2-9b-it">Gemma 2 9B (Google)</option>
-          <option value="mixtral-8x7b-32768">Mixtral 8x7B (MoE)</option>
+          <option value="openai/gpt-oss-120b">GPT-OSS 120B (OpenAI)</option>
+          <option value="openai/gpt-oss-20b">GPT-OSS 20B (OpenAI)</option>
         </select>
       </div>
 
@@ -268,7 +268,7 @@
         <div class="help-text">
           OpenRouter API anahtarınız yoksa <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a> üzerinden alabilirsiniz.
         </div>
-        <button type="button" id="fetch-models-btn" class="btn-save" style="margin-top: 12px; padding: 8px;">
+        <button type="button" id="fetch-openrouter-models-btn" class="btn-save" style="margin-top: 12px; padding: 8px;">
           Modelleri Getir
         </button>
       </div>
@@ -280,31 +280,29 @@
         </select>
       </div>
 
-      <div id="github-group" class="form-group" style="display: none;">
-        <label for="github-key">GitHub Personal Access Token</label>
+      <div id="nvidia-group" class="form-group" style="display: none;">
+        <label for="nvidia-key">NVIDIA API Anahtarı</label>
         <div class="input-wrapper">
-          <input type="password" id="github-key" placeholder="ghp_...">
-          <button type="button" id="toggle-github-password" class="password-toggle">Göster</button>
+          <input type="password" id="nvidia-key" placeholder="nvapi-...">
+          <button type="button" id="toggle-nvidia-password" class="password-toggle">Göster</button>
         </div>
         <div class="help-text">
-          GitHub üzerinden aldığınız Personal Access Token'ı (PAT) buraya girin.
+          NVIDIA API anahtarınız yoksa <a href="https://build.nvidia.com/settings/api-keys" target="_blank">build.nvidia.com</a> üzerinden ücretsiz alabilirsiniz.
         </div>
+        <button type="button" id="fetch-nvidia-models-btn" class="btn-save" style="margin-top: 12px; padding: 8px;">
+          Modelleri Getir
+        </button>
       </div>
 
-      <div id="github-model-group" class="form-group" style="display: none;">
-        <label for="github-model">GitHub Modeli</label>
-        <select id="github-model">
-          <option value="gpt-4o">GPT-4o (OpenAI)</option>
-          <option value="gpt-4o-mini">GPT-4o Mini (OpenAI)</option>
-          <option value="Llama-3.3-70B-Instruct">Llama 3.3 70B (Meta)</option>
-          <option value="Meta-Llama-3-8B-Instruct">Llama 3 8B (Meta)</option>
-          <option value="Cohere-command-r-plus">Command R+ (Cohere)</option>
+      <div id="nvidia-model-group" class="form-group" style="display: none;">
+        <label for="nvidia-model">NVIDIA Modeli</label>
+        <select id="nvidia-model">
+          <option value="nvidia/nemotron-3-super-120b-a12b">Nemotron 3 Super 120B (Önerilen)</option>
         </select>
-        <div class="help-text">GitHub Models API'si üzerinden kullanılacak model.</div>
       </div>
 
       <div class="form-group">
-        <label for="language">Özet Dili</label>
+        <label for="language">Özet / Çeviri Dili</label>
         <select id="language">
           <option value="Turkish">Türkçe</option>
           <option value="English">English</option>

@@ -25,6 +25,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Translate current page
+  document.getElementById("translate-btn").addEventListener("click", async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && tab.id) {
+      chrome.tabs.sendMessage(tab.id, { action: "translate_page_reader" });
+      window.close();
+    }
+  });
+
   // Open options page
   optionsBtn.addEventListener("click", () => {
     chrome.runtime.openOptionsPage();

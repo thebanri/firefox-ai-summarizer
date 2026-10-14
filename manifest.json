@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Zen AI Summarizer",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Yapay zeka ile herhangi bir web sayfasını veya bağlantıyı anında özetleyin.",
   "permissions": [
     "contextMenus",
@@ -10,7 +10,7 @@
     "scripting"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com https://api.groq.com https://openrouter.ai https://models.inference.ai.azure.com;"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://generativelanguage.googleapis.com https://api.groq.com https://openrouter.ai https://integrate.api.nvidia.com;"
   },
   "host_permissions": [
     "<all_urls>"

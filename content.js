@@ -1250,6 +1250,71 @@ function parseMarkdown(markdown) {
   return html;
 }
 
+// Extract the page as Markdown-like text, keeping headings/lists/code so the translation keeps its structure
+function extractTranslatableText() {
+  const BLOCKS = "h1, h2, h3, h4, h5, h6, p, li, pre, blockquote, th, td, figcaption";
+  let root = null;
+  try {
+    const article = new Readability(document.cloneNode(true)).parse();
+    if (article && article.content && article.textContent.trim().length > 250) {
+      root = new DOMParser().parseFromString(article.content, "text/html").body;
+    }
+  } catch (e) {
+    console.log("Readability parse failed, using fallback:", e);
+  }
+
+  const lines = [];
+  if (root) {
+    root.querySelectorAll(BLOCKS).forEach(el => {
+      // Outermost block only, so nested <li><p> is not emitted twice
+      if (el.parentElement && el.parentElement.closest(BLOCKS)) return;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "pre") {
+        lines.push("```\n" + el.textContent.trim() + "\n```");
+        return;
+      }
+      const text = el.textContent.replace(/\s+/g, " ").trim();
+      if (!text) return;
+      if (/^h[1-6]$/.test(tag)) lines.push("#".repeat(Number(tag[1])) + " " + text);
+      else if (tag === "li") lines.push("- " + text);
+      else if (tag === "blockquote") lines.push("> " + text);
+      else lines.push(text);
+    });
+  }
+
+  // Web apps without article markup: rendered text still keeps its line breaks
+  const text = lines.length ? lines.join("\n\n") : (document.body.innerText || "").replace(/\n\s*\n+/g, "\n\n");
+  return text.trim().slice(0, 50000);
+}
+
+function translatePageInPlace() {
+  const title = document.title || "Mevcut Sayfa";
+  const url = window.location.href;
+  const text = extractTranslatableText();
+
+  if (text.length < 50) {
+    showOverlay("summary");
+    displayResult({ error: "Sayfada çevrilebilecek yeterli metin bulunamadı.", title, url });
+    return;
+  }
+
+  showLoader("Sayfa çevriliyor...");
+  shadowRoot.querySelector(".brand-title").textContent = "Zen AI Çeviri";
+
+  chrome.runtime.sendMessage({ action: "translate_page", text, title }, (response) => {
+    if (!response) {
+      displayResult({ error: "Arka plan servisi ile iletişim kurulamadı." });
+      return;
+    }
+    if (response.success) {
+      displayResult({ title, url, summaryHtml: parseMarkdown(response.translation) });
+    } else {
+      const isMissing = response.error && response.error.includes("API_KEY_MISSING");
+      displayResult({ error: isMissing ? null : response.error, isApiKeyMissing: isMissing, title, url });
+    }
+  });
+}
+
 function startPageSummarization() {
   extractPageTextAsync().then(pageData => {
     if (pageData.text.length < 50) {
@@ -1263,6 +1328,7 @@ function startPageSummarization() {
     }
 
     showLoader("Sayfa içeriği analiz ediliyor...");
+    shadowRoot.querySelector(".brand-title").textContent = "Zen AI Summary";
 
     // Send text to background script to call Gemini API
     chrome.runtime.sendMessage({
@@ -1335,11 +1401,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === "summarize_link_success") {
     // Successfully summarized the link content
-    const summaryHtml = parseMarkdown(request.summary);
     displayResult({
       title: request.title,
       url: request.url,
-      summaryHtml: request.success ? parseMarkdown(request.summary) : null
+      summaryHtml: parseMarkdown(request.summary)
     });
   }
 
@@ -1371,6 +1436,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === "translate_page_reader") {
     translatePageInPlace();
+  }
+
+  if (request.action === "translate_progress") {
+    displayResult({
+      title: document.title,
+      url: window.location.href,
+      summaryHtml: parseMarkdown(request.translation) + `<p><em>Çevriliyor... (${request.done}/${request.total})</em></p>`
+    });
   }
 });
 

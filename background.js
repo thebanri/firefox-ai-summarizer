@@ -12,6 +12,12 @@ chrome.runtime.onInstalled.addListener(() => {
       title: "Bu Bağlantıyı AI ile Özetle",
       contexts: ["link"]
     });
+
+    chrome.contextMenus.create({
+      id: "translate-page",
+      title: "Bu Sayfayı AI ile Çevir",
+      contexts: ["page"]
+    });
   });
 });
 
@@ -38,6 +44,8 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
     // Start fetching and summarizing the link content
     summarizeLink(info.linkUrl, tab.id);
+  } else if (info.menuItemId === "translate-page") {
+    chrome.tabs.sendMessage(tab.id, { action: "translate_page_reader" });
   }
 });
 
@@ -66,17 +74,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
   
-  if (request.action === "chat_with_page") {
-    requestChat(request.text, request.history, request.message)
-      .then(reply => {
-        sendResponse({ success: true, reply });
+  if (request.action === "translate_page") {
+    requestTranslation(request.text, request.title, sender.tab?.id)
+      .then(translation => {
+        sendResponse({ success: true, translation });
       })
       .catch(error => {
         sendResponse({ success: false, error: error.message });
       });
     return true;
   }
-  
+
   if (request.action === "open_options") {
     chrome.runtime.openOptionsPage();
   }
@@ -183,272 +191,194 @@ function cleanHtml(html) {
   return { title, text };
 }
 
-// Request summary from Gemini or Groq depending on provider settings
-async function requestSummary(text, pageTitle) {
-  // Get API key and options from local storage
-  const settings = await chrome.storage.local.get({
-    provider: "gemini",
-    geminiApiKey: "",
-    apiKey: "", // legacy fallback
-    groqApiKey: "",
-    groqModel: "llama-3.3-70b-versatile",
-    openrouterApiKey: "",
-    openrouterModel: "",
-    githubApiKey: "",
-    githubModel: "",
-    language: "Turkish",
-    detailLevel: "detailed"
-  });
+const SETTINGS_DEFAULTS = {
+  provider: "gemini",
+  geminiApiKey: "",
+  apiKey: "", // legacy fallback
+  groqApiKey: "",
+  groqModel: "llama-3.3-70b-versatile",
+  openrouterApiKey: "",
+  openrouterModel: "",
+  nvidiaApiKey: "",
+  nvidiaModel: "nvidia/nemotron-3-super-120b-a12b",
+  language: "Turkish",
+  detailLevel: "detailed"
+};
 
+// "latest" alias so the extension keeps working when Google retires a Flash version
+const GEMINI_MODEL = "gemini-flash-latest";
+
+// OpenAI-compatible chat completion providers
+const OPENAI_PROVIDERS = {
+  groq: { name: "Groq", url: "https://api.groq.com/openai/v1/chat/completions" },
+  openrouter: {
+    name: "OpenRouter",
+    url: "https://openrouter.ai/api/v1/chat/completions",
+    headers: {
+      "HTTP-Referer": "https://github.com/thebanri/firefox-ai-summarizer",
+      "X-OpenRouter-Title": "Zen AI Summarizer"
+    }
+  },
+  nvidia: { name: "NVIDIA", url: "https://integrate.api.nvidia.com/v1/chat/completions" }
+};
+
+const TRUNCATED_NOTE = "\n\n*(Not: Yanıt yarıda kesildi. Neden: Maksimum uzunluğa ulaşıldı)*";
+
+// fetch with timeout and retry on rate limits / transient server errors
+async function fetchWithRetry(url, options, retries = 2) {
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(url, { ...options, signal: AbortSignal.timeout(120000) });
+    const retryable = response.status === 429 || response.status >= 500;
+    if (!retryable || attempt >= retries) return response;
+    const retryAfter = Number(response.headers.get("retry-after"));
+    const delay = retryAfter > 0 ? Math.min(retryAfter, 30) * 1000 : 2000 * (attempt + 1);
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+}
+
+async function readApiError(response, providerName) {
+  const errorData = await response.json().catch(() => ({}));
+  const apiError = errorData.error?.message || errorData.detail || response.statusText || response.status;
+  return new Error(`${providerName} API Hatası (${response.status}): ${apiError}`);
+}
+
+// Single entry point for every AI request: messages are [{ role: "user"|"assistant", content }]
+async function callAI(system, messages, { maxTokens = 4096, webSearch = false } = {}) {
+  const settings = await chrome.storage.local.get(SETTINGS_DEFAULTS);
   const provider = settings.provider || "gemini";
-  const prompt = buildPrompt(settings.language, settings.detailLevel, pageTitle);
-
   console.log(`[Zen AI Summarizer] Yapay zeka sağlayıcısı kullanılıyor: ${provider.toUpperCase()}`);
 
   if (provider === "gemini") {
     const key = settings.geminiApiKey || settings.apiKey;
-    if (!key) {
-      throw new Error("API_KEY_MISSING");
-    }
-    return requestSummaryFromGemini(text, prompt, key);
-  } else if (provider === "groq") {
-    if (!settings.groqApiKey) {
-      throw new Error("API_KEY_MISSING");
-    }
-    return requestSummaryFromGroq(text, prompt, settings.groqApiKey, settings.groqModel);
-  } else if (provider === "openrouter") {
-    if (!settings.openrouterApiKey) {
-      throw new Error("API_KEY_MISSING");
-    }
-    if (!settings.openrouterModel) {
-      throw new Error("Lütfen seçeneklerden OpenRouter modelini seçin.");
-    }
-    return requestSummaryFromOpenRouter(text, prompt, settings.openrouterApiKey, settings.openrouterModel);
-  } else if (provider === "github") {
-    if (!settings.githubApiKey) {
-      throw new Error("API_KEY_MISSING");
-    }
-    if (!settings.githubModel) {
-      throw new Error("Lütfen GitHub modelini seçin.");
-    }
-    return requestSummaryFromGithub(text, prompt, settings.githubApiKey, settings.githubModel);
-  } else {
-    throw new Error(`Bilinmeyen sağlayıcı: ${provider}`);
-  }
-}
-
-// Translate page text to markdown
-async function requestTranslation(text, pageTitle) {
-  const settings = await chrome.storage.local.get({
-    provider: "gemini",
-    geminiApiKey: "",
-    apiKey: "", // legacy fallback
-    groqApiKey: "",
-    groqModel: "llama-3.3-70b-versatile",
-    openrouterApiKey: "",
-    openrouterModel: "",
-    githubApiKey: "",
-    githubModel: ""
-  });
-
-  const provider = settings.provider || "gemini";
-  const prompt = `Lütfen aşağıdaki web sayfası metnini Türkçe'ye çevir. Çıktıyı doğrudan, sayfada okunabilecek güzel bir makale (Markdown) formatında ver. Başlıklar, paragraflar ve listeleri koru. İngilizce kelime veya kod parçalarını bozma.\n\nSayfa Başlığı: ${pageTitle}\n\nİçerik:\n${text}`;
-
-  console.log(`[Zen AI Summarizer] Reader Mode Çeviri yapılıyor: ${provider.toUpperCase()}`);
-
-  if (provider === "gemini") {
-    const key = settings.geminiApiKey || settings.apiKey;
     if (!key) throw new Error("API_KEY_MISSING");
-    return requestSummaryFromGemini(text, prompt, key);
-  } else if (provider === "groq") {
-    if (!settings.groqApiKey) throw new Error("API_KEY_MISSING");
-    return requestSummaryFromGroq(text, prompt, settings.groqApiKey, settings.groqModel);
-  } else if (provider === "openrouter") {
-    if (!settings.openrouterApiKey) throw new Error("API_KEY_MISSING");
-    if (!settings.openrouterModel) throw new Error("Lütfen seçeneklerden OpenRouter modelini seçin.");
-    return requestSummaryFromOpenRouter(text, prompt, settings.openrouterApiKey, settings.openrouterModel);
-  } else if (provider === "github") {
-    if (!settings.githubApiKey) throw new Error("API_KEY_MISSING");
-    if (!settings.githubModel) throw new Error("Lütfen GitHub modelini seçin.");
-    return requestSummaryFromGithub(text, prompt, settings.githubApiKey, settings.githubModel);
-  } else {
-    throw new Error(`Bilinmeyen sağlayıcı: ${provider}`);
+    return callGemini(key, system, messages, webSearch);
   }
+
+  const config = OPENAI_PROVIDERS[provider];
+  if (!config) {
+    throw new Error(`"${provider}" sağlayıcısı artık desteklenmiyor. Lütfen ayarlardan başka bir sağlayıcı seçin.`);
+  }
+  const key = settings[`${provider}ApiKey`];
+  const model = settings[`${provider}Model`];
+  if (!key) throw new Error("API_KEY_MISSING");
+  if (!model) throw new Error(`Lütfen ayarlardan ${config.name} modelini seçin.`);
+  return callOpenAICompatible(config, key, model, system, messages, maxTokens);
 }
 
-// Request summary from Gemini
-async function requestSummaryFromGemini(text, prompt, apiKey) {
-  console.log("[Zen AI Summarizer] Gemini API isteği başlatılıyor...");
-  const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
-
-  const response = await fetch(`${apiEndpoint}?key=${apiKey}`, {
+async function callGemini(apiKey, system, messages, webSearch) {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+  const response = await fetchWithRetry(endpoint, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey
-    },
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
     body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              text: `${prompt}\n\nİçerik:\n${text}`
-            }
-          ]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 8192
-      },
-      tools: [
-        { googleSearch: {} }
-      ],
-      safetySettings: [
-        {
-          category: "HARM_CATEGORY_HARASSMENT",
-          threshold: "BLOCK_NONE"
-        },
-        {
-          category: "HARM_CATEGORY_HATE_SPEECH",
-          threshold: "BLOCK_NONE"
-        },
-        {
-          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-          threshold: "BLOCK_NONE"
-        },
-        {
-          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-          threshold: "BLOCK_NONE"
-        }
-      ]
+      systemInstruction: { parts: [{ text: system }] },
+      contents: messages.map(msg => ({
+        role: msg.role === "assistant" ? "model" : "user",
+        parts: [{ text: msg.content }]
+      })),
+      // Generous cap: thinking tokens count against it on Gemini
+      generationConfig: { temperature: 0.3, maxOutputTokens: 16384 },
+      ...(webSearch && { tools: [{ googleSearch: {} }] }),
+      safetySettings: ["HARASSMENT", "HATE_SPEECH", "SEXUALLY_EXPLICIT", "DANGEROUS_CONTENT"]
+        .map(c => ({ category: `HARM_CATEGORY_${c}`, threshold: "BLOCK_NONE" }))
     })
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const apiError = errorData.error?.message || response.statusText;
-    throw new Error(`Gemini API Hatası: ${apiError}`);
-  }
+  if (!response.ok) throw await readApiError(response, "Gemini");
 
   const data = await response.json();
   const candidate = data.candidates?.[0];
-  let summaryText = candidate?.content?.parts?.[0]?.text;
-
-  if (!summaryText) {
-    const finishReason = candidate?.finishReason;
-    if (finishReason) {
-      throw new Error(`Yapay zeka yanıt üretemedi. Durma Nedeni: ${finishReason}`);
-    }
-    throw new Error("Yapay zekadan boş yanıt döndü.");
-  }
-
-  // Check if response was truncated
   const finishReason = candidate?.finishReason;
-  if (finishReason && finishReason !== "STOP") {
-    summaryText += `\n\n*(Not: Özet oluşturma işlemi yarıda kesildi. Neden: ${finishReason})*`;
-  }
+  // Grounded/thinking responses can be split across several parts
+  let text = (candidate?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join("");
 
-  return summaryText;
+  if (!text) {
+    const reason = finishReason || data.promptFeedback?.blockReason;
+    throw new Error(reason ? `Yapay zeka yanıt üretemedi. Durma Nedeni: ${reason}` : "Yapay zekadan boş yanıt döndü.");
+  }
+  if (finishReason === "MAX_TOKENS") text += TRUNCATED_NOTE;
+  return text;
 }
 
-// Request summary from Groq API
-async function requestSummaryFromGroq(text, prompt, apiKey, model) {
-  console.log(`[Zen AI Summarizer] Groq API isteği başlatılıyor (Model: ${model})...`);
-  const apiEndpoint = "https://api.groq.com/openai/v1/chat/completions";
-
-  const response = await fetch(apiEndpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        {
-          role: "system",
-          content: prompt
-        },
-        {
-          role: "user",
-          content: `Lütfen aşağıdaki web sayfası içeriğini özetle:\n\n${text}`
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 4096
-    })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const apiError = errorData.error?.message || response.statusText;
-    throw new Error(`Groq API Hatası: ${apiError}`);
-  }
-
-  const data = await response.json();
-  let summaryText = data.choices?.[0]?.message?.content;
-
-  if (!summaryText) {
-    throw new Error("Groq API'den boş yanıt döndü.");
-  }
-
-  // Check if response was truncated
-  const finishReason = data.choices?.[0]?.finish_reason;
-  if (finishReason && finishReason === "length") {
-    summaryText += `\n\n*(Not: Özet oluşturma işlemi yarıda kesildi. Neden: Maksimum uzunluğa ulaşıldı)*`;
-  }
-
-  return summaryText;
-}
-
-// Request summary from OpenRouter API
-async function requestSummaryFromOpenRouter(text, prompt, apiKey, model) {
-  console.log(`[Zen AI Summarizer] OpenRouter API isteği başlatılıyor (Model: ${model})...`);
-  const apiEndpoint = "https://openrouter.ai/api/v1/chat/completions";
-
-  const response = await fetch(apiEndpoint, {
+async function callOpenAICompatible(config, apiKey, model, system, messages, maxTokens) {
+  console.log(`[Zen AI Summarizer] ${config.name} API isteği başlatılıyor (Model: ${model})...`);
+  const response = await fetchWithRetry(config.url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://github.com/thebanri/firefox-ai-summarizer", // Required by OpenRouter
-      "X-Title": "Zen AI Summarizer" // Optional
+      ...config.headers
     },
     body: JSON.stringify({
-      model: model,
-      messages: [
-        {
-          role: "system",
-          content: prompt
-        },
-        {
-          role: "user",
-          content: `Lütfen aşağıdaki web sayfası içeriğini özetle:\n\n${text}`
-        }
-      ]
+      model,
+      messages: [{ role: "system", content: system }, ...messages],
+      temperature: 0.3,
+      max_tokens: maxTokens
     })
   });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const apiError = errorData.error?.message || response.statusText;
-    throw new Error(`OpenRouter API Hatası: ${apiError}`);
-  }
+  if (!response.ok) throw await readApiError(response, config.name);
 
   const data = await response.json();
-  let summaryText = data.choices?.[0]?.message?.content;
+  const choice = data.choices?.[0];
+  // Reasoning models may wrap their chain of thought in <think> tags inside content
+  let text = (choice?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  if (!text) throw new Error(`${config.name} API'den boş yanıt döndü.`);
+  if (choice.finish_reason === "length") text += TRUNCATED_NOTE;
+  return text;
+}
 
-  if (!summaryText) {
-    throw new Error("OpenRouter API'den boş yanıt döndü.");
+async function requestSummary(text, pageTitle) {
+  const { language, detailLevel } = await chrome.storage.local.get(SETTINGS_DEFAULTS);
+  const system = buildPrompt(language, detailLevel, pageTitle);
+  return callAI(system, [{ role: "user", content: `Lütfen aşağıdaki web sayfası içeriğini özetle:\n\n${text}` }], { webSearch: true });
+}
+
+// Split on paragraph boundaries so each request stays well under provider output limits
+function splitIntoChunks(text, maxLength = 6000) {
+  const chunks = [];
+  let current = "";
+  for (const paragraph of text.split(/\n{2,}/)) {
+    for (let i = 0; i < paragraph.length; i += maxLength) {
+      const piece = paragraph.slice(i, i + maxLength);
+      if (current && current.length + piece.length + 2 > maxLength) {
+        chunks.push(current);
+        current = "";
+      }
+      current += (current ? "\n\n" : "") + piece;
+    }
   }
+  if (current.trim()) chunks.push(current);
+  return chunks;
+}
 
-  const finishReason = data.choices?.[0]?.finish_reason;
-  if (finishReason && finishReason === "length") {
-    summaryText += `\n\n*(Not: Özet oluşturma işlemi yarıda kesildi. Neden: Maksimum uzunluğa ulaşıldı)*`;
+// Translate page text chunk by chunk, streaming partial results to the tab
+async function requestTranslation(text, pageTitle, tabId) {
+  const { language } = await chrome.storage.local.get(SETTINGS_DEFAULTS);
+  const system = `Sen profesyonel bir çevirmensin. Sana verilen web sayfası metnini "${language}" diline çevir.
+KURALLAR:
+1. Sadece çeviriyi Markdown olarak döndür. "İşte çeviri:" gibi giriş, açıklama veya yorum ekleme.
+2. Başlıkları (#), listeleri, tabloları ve paragraf yapısını aynen koru.
+3. Kod bloklarını, URL'leri, komutları, değişken, marka ve ürün adlarını çevirme.
+4. Metnin bir kısmı zaten "${language}" dilindeyse o kısmı olduğu gibi bırak.
+5. Kelime kelime değil, anlamı koruyarak akıcı ve doğal bir dille çevir.
+6. Metin uzun bir sayfanın bir parçası olabilir; eksik görünse bile tamamlamaya veya özetlemeye çalışma, sadece verilen kısmı çevir.`;
+
+  const chunks = splitIntoChunks(text);
+  const parts = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const content = i === 0 ? `Sayfa Başlığı: ${pageTitle}\n\n${chunks[i]}` : chunks[i];
+    parts.push(await callAI(system, [{ role: "user", content }]));
+    if (tabId && i < chunks.length - 1) {
+      chrome.tabs.sendMessage(tabId, {
+        action: "translate_progress",
+        translation: parts.join("\n\n"),
+        done: i + 1,
+        total: chunks.length
+      }).catch(() => {});
+    }
   }
-
-  return summaryText;
+  return parts.join("\n\n");
 }
 
 // Build prompt based on settings
@@ -476,23 +406,8 @@ function buildPrompt(language, detailLevel, pageTitle) {
 6. Reklamları ve ilgisiz metinleri göz ardı et, tamamen teknik doğruluğa ve önemli detaylara odaklan.`;
 }
 
-// Chat functions
 async function requestChat(pageText, history, userMessage) {
-  const settings = await chrome.storage.local.get({
-    provider: "gemini",
-    geminiApiKey: "",
-    apiKey: "", // legacy
-    groqApiKey: "",
-    groqModel: "llama-3.3-70b-versatile",
-    openrouterApiKey: "",
-    openrouterModel: "",
-    githubApiKey: "",
-    githubModel: "",
-    language: "Turkish"
-  });
-
-  const provider = settings.provider || "gemini";
-  
+  const settings = await chrome.storage.local.get(SETTINGS_DEFAULTS);
   const systemPrompt = `Sen profesyonel, akıcı ve doğal konuşan bir yapay zeka asistanısın. Görevin, kullanıcının bulunduğu web sayfası hakkında sorularını cevaplamak. Cevaplarını kesinlikle hatasız, doğal ve akıcı bir "${settings.language}" dilinde ver. 
 
 ÖNEMLİ KURALLAR:
@@ -508,255 +423,10 @@ Aşağıdaki metin şu anda kullanıcının bulunduğu sayfanın içeriğidir (B
 ${pageText}
 ---`;
 
-  if (provider === "gemini") {
-    const key = settings.geminiApiKey || settings.apiKey;
-    if (!key) throw new Error("API_KEY_MISSING");
-    return requestChatFromGemini(systemPrompt, history, userMessage, key);
-  } else if (provider === "groq") {
-    if (!settings.groqApiKey) throw new Error("API_KEY_MISSING");
-    return requestChatFromGroq(systemPrompt, history, userMessage, settings.groqApiKey, settings.groqModel);
-  } else if (provider === "openrouter") {
-    if (!settings.openrouterApiKey) throw new Error("API_KEY_MISSING");
-    if (!settings.openrouterModel) throw new Error("Lütfen seçeneklerden OpenRouter modelini seçin.");
-    return requestChatFromOpenRouter(systemPrompt, history, userMessage, settings.openrouterApiKey, settings.openrouterModel);
-  } else if (provider === "github") {
-    if (!settings.githubApiKey) throw new Error("API_KEY_MISSING");
-    if (!settings.githubModel) throw new Error("Lütfen GitHub modelini seçin.");
-    return requestChatFromGithub(systemPrompt, history, userMessage, settings.githubApiKey, settings.githubModel);
-  } else {
-    throw new Error(`Bilinmeyen sağlayıcı: ${provider}`);
-  }
-}
-
-async function requestChatFromGemini(systemPrompt, history, userMessage, apiKey) {
-  const apiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
-
-  // Map history to Gemini format
-  const contents = [];
-  
-  // Gemini doesn't use "system" role in contents directly (unless systemInstruction is used, but for simplicity we append to first user message or use systemInstruction)
-  const formattedContents = history.map(msg => ({
-    role: msg.role === "assistant" ? "model" : "user",
-    parts: [{ text: msg.content }]
+  const messages = (history || []).map(msg => ({
+    role: msg.role === "user" ? "user" : "assistant",
+    content: msg.content
   }));
-  
-  formattedContents.push({
-    role: "user",
-    parts: [{ text: userMessage }]
-  });
-
-  const response = await fetch(apiEndpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey
-    },
-    body: JSON.stringify({
-      systemInstruction: {
-        parts: [{ text: systemPrompt }]
-      },
-      contents: formattedContents,
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 2048
-      },
-      tools: [
-        { googleSearch: {} }
-      ]
-    })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const apiError = errorData.error?.message || response.statusText;
-    throw new Error(`Gemini API Hatası: ${apiError}`);
-  }
-
-  const data = await response.json();
-  const candidate = data.candidates?.[0];
-  let replyText = candidate?.content?.parts?.[0]?.text;
-
-  if (!replyText) throw new Error("Yapay zekadan boş yanıt döndü.");
-  return replyText;
-}
-
-async function requestChatFromGroq(systemPrompt, history, userMessage, apiKey, model) {
-  const apiEndpoint = "https://api.groq.com/openai/v1/chat/completions";
-
-  const messages = [
-    { role: "system", content: systemPrompt },
-    ...history,
-    { role: "user", content: userMessage }
-  ];
-
-  const response = await fetch(apiEndpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: messages,
-      temperature: 0.3,
-      max_tokens: 2048
-    })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const apiError = errorData.error?.message || response.statusText;
-    throw new Error(`Groq API Hatası: ${apiError}`);
-  }
-
-  const data = await response.json();
-  let replyText = data.choices?.[0]?.message?.content;
-  if (!replyText) throw new Error("Groq API'den boş yanıt döndü.");
-  return replyText;
-}
-
-async function requestChatFromOpenRouter(systemPrompt, history, userMessage, apiKey, model) {
-  const apiEndpoint = "https://openrouter.ai/api/v1/chat/completions";
-
-  const messages = [
-    { role: "system", content: systemPrompt },
-    ...history,
-    { role: "user", content: userMessage }
-  ];
-
-  const response = await fetch(apiEndpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://github.com/thebanri/firefox-ai-summarizer",
-      "X-Title": "Zen AI Summarizer"
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: messages,
-      temperature: 0.3
-    })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const apiError = errorData.error?.message || response.statusText;
-    throw new Error(`OpenRouter API Hatası: ${apiError}`);
-  }
-
-  const data = await response.json();
-  let replyText = data.choices?.[0]?.message?.content;
-  if (!replyText) throw new Error("OpenRouter API'den boş yanıt döndü.");
-  return replyText;
-}
-
-// Request summary from GitHub Models
-async function requestSummaryFromGithub(text, prompt, apiKey, model) {
-  console.log(`[Zen AI Summarizer] GitHub Models isteği başlatılıyor (Model: ${model})...`);
-  const apiEndpoint = "https://models.inference.ai.azure.com/chat/completions";
-
-  const response = await fetch(apiEndpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        {
-          role: "system",
-          content: prompt
-        },
-        {
-          role: "user",
-          content: `Lütfen aşağıdaki web sayfası içeriğini özetle:\n\n${text}`
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 4096
-    })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const apiError = errorData.error?.message || response.statusText || response.status;
-    throw new Error(`GitHub Models Hatası: ${apiError}`);
-  }
-
-  const data = await response.json();
-  let summaryText = data.choices?.[0]?.message?.content;
-
-  if (!summaryText) {
-    throw new Error("GitHub Models'den boş yanıt döndü.");
-  }
-
-  const finishReason = data.choices?.[0]?.finish_reason;
-  if (finishReason && finishReason === "length") {
-    summaryText += `\n\n*(Not: Özet yarıda kesildi. Neden: Maksimum uzunluğa ulaşıldı)*`;
-  }
-
-  return summaryText;
-}
-
-// Request chat from GitHub Models
-async function requestChatFromGithub(systemPrompt, history, userMessage, apiKey, model) {
-  console.log(`[Zen AI Summarizer] GitHub Models Sohbet isteği başlatılıyor (Model: ${model})...`);
-  const apiEndpoint = "https://models.inference.ai.azure.com/chat/completions";
-
-  const messages = [
-    {
-      role: "system",
-      content: systemPrompt
-    }
-  ];
-
-  if (history && history.length > 0) {
-    history.forEach(msg => {
-      messages.push({
-        role: msg.role === "ai" ? "assistant" : msg.role,
-        content: msg.content
-      });
-    });
-  }
-
-  messages.push({
-    role: "user",
-    content: userMessage
-  });
-
-  const response = await fetch(apiEndpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: model,
-      messages: messages,
-      temperature: 0.5,
-      max_tokens: 4096
-    })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const apiError = errorData.error?.message || response.statusText || response.status;
-    throw new Error(`GitHub Models Hatası: ${apiError}`);
-  }
-
-  const data = await response.json();
-  let replyText = data.choices?.[0]?.message?.content;
-
-  if (!replyText) {
-    throw new Error("GitHub Models'den boş yanıt döndü.");
-  }
-
-  const finishReason = data.choices?.[0]?.finish_reason;
-  if (finishReason && finishReason === "length") {
-    replyText += `\n\n*(Not: Yanıt yarıda kesildi. Neden: Maksimum uzunluğa ulaşıldı)*`;
-  }
-
-  return replyText;
+  messages.push({ role: "user", content: userMessage });
+  return callAI(systemPrompt, messages, { webSearch: true });
 }
