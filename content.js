@@ -1093,9 +1093,10 @@ function displayResult({ title, url, summaryHtml, error, isApiKeyMissing = false
             </svg>
             Hata Oluştu
           </div>
-          ${error}
+          <div class="error-message"></div>
         </div>
       `;
+      summaryOutput.querySelector(".error-message").textContent = error;
     }
   } else {
     summaryOutput.innerHTML = summaryHtml;
@@ -1226,13 +1227,25 @@ async function extractPageTextAsync() {
   };
 }
 
+// AI output can be steered by page content (prompt injection), so strip anything executable before innerHTML
+function sanitizeHtml(html) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.querySelectorAll("script, style, iframe, frame, object, embed, form, link, meta, base, svg, math, template").forEach(el => el.remove());
+  doc.body.querySelectorAll("*").forEach(el => {
+    for (const attr of [...el.attributes]) {
+      if (/^on/i.test(attr.name) || /^\s*javascript:/i.test(attr.value)) el.removeAttribute(attr.name);
+    }
+  });
+  return doc.body.innerHTML;
+}
+
 // Custom Markdown Parser
 function parseMarkdown(markdown) {
   if (!markdown) return "";
   
   if (typeof marked !== "undefined") {
     try {
-      return marked.parse(markdown);
+      return sanitizeHtml(marked.parse(markdown));
     } catch(e) {
       console.error("marked parse error", e);
     }
