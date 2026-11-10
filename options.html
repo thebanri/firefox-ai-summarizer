@@ -253,6 +253,16 @@
         <div class="help-text">
           API anahtarınız yoksa <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>'dan ücretsiz alabilirsiniz.
         </div>
+        <button type="button" id="fetch-gemini-models-btn" class="btn-save" style="margin-top: 12px; padding: 8px;">
+          Modelleri Getir
+        </button>
+      </div>
+
+      <div id="gemini-model-group" class="form-group" style="display: none;">
+        <label for="gemini-model">Gemini Modeli</label>
+        <select id="gemini-model">
+          <option value="gemini-flash-latest">Gemini Flash (en güncel)</option>
+        </select>
       </div>
 
       <div id="groq-group" class="form-group" style="display: none;">

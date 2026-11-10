@@ -194,6 +194,8 @@ function cleanHtml(html) {
 const SETTINGS_DEFAULTS = {
   provider: "gemini",
   geminiApiKey: "",
+  // "latest" alias so the extension keeps working when Google retires a Flash version
+  geminiModel: "gemini-flash-latest",
   apiKey: "", // legacy fallback
   groqApiKey: "",
   groqModel: "llama-3.3-70b-versatile",
@@ -204,9 +206,6 @@ const SETTINGS_DEFAULTS = {
   language: "Turkish",
   detailLevel: "detailed"
 };
-
-// "latest" alias so the extension keeps working when Google retires a Flash version
-const GEMINI_MODEL = "gemini-flash-latest";
 
 // OpenAI-compatible chat completion providers
 const OPENAI_PROVIDERS = {
@@ -251,7 +250,7 @@ async function callAI(system, messages, { maxTokens = 4096, webSearch = false } 
   if (provider === "gemini") {
     const key = settings.geminiApiKey || settings.apiKey;
     if (!key) throw new Error("API_KEY_MISSING");
-    return callGemini(key, system, messages, webSearch);
+    return callGemini(key, settings.geminiModel || SETTINGS_DEFAULTS.geminiModel, system, messages, webSearch);
   }
 
   const config = OPENAI_PROVIDERS[provider];
@@ -265,8 +264,8 @@ async function callAI(system, messages, { maxTokens = 4096, webSearch = false } 
   return callOpenAICompatible(config, key, model, system, messages, maxTokens);
 }
 
-async function callGemini(apiKey, system, messages, webSearch) {
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+async function callGemini(apiKey, model, system, messages, webSearch) {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   const response = await fetchWithRetry(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
@@ -294,7 +293,7 @@ async function callGemini(apiKey, system, messages, webSearch) {
 
   if (!text) {
     const reason = finishReason || data.promptFeedback?.blockReason;
-    throw new Error(reason ? `Yapay zeka yanıt üretemedi. Durma Nedeni: ${reason}` : "Yapay zekadan boş yanıt döndü.");
+    throw new Error(`Gemini (${model}) boş yanıt döndürdü. Durma nedeni: ${reason || "bilinmiyor"}.`);
   }
   if (finishReason === "MAX_TOKENS") text += TRUNCATED_NOTE;
   return text;
@@ -322,8 +321,13 @@ async function callOpenAICompatible(config, apiKey, model, system, messages, max
   const data = await response.json();
   const choice = data.choices?.[0];
   // Reasoning models may wrap their chain of thought in <think> tags inside content
-  let text = (choice?.message?.content || "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-  if (!text) throw new Error(`${config.name} API'den boş yanıt döndü.`);
+  // An unclosed <think> means the token limit was hit while still reasoning
+  let text = (choice?.message?.content || "").replace(/<think>[\s\S]*?(<\/think>|$)/g, "").trim();
+  if (!text) {
+    const reason = choice?.error?.message || data.error?.message || choice?.finish_reason || "bilinmiyor";
+    const hint = choice?.finish_reason === "length" ? " Model token sınırını düşünmeye harcadı; başka bir model deneyin." : "";
+    throw new Error(`${config.name} (${model}) boş yanıt döndürdü. Durma nedeni: ${reason}.${hint}`);
+  }
   if (choice.finish_reason === "length") text += TRUNCATED_NOTE;
   return text;
 }

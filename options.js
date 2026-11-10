@@ -5,6 +5,16 @@ const FREE_SUFFIX = " (Ücretsiz)";
 
 // Providers whose model list is fetched from their API
 const MODEL_SOURCES = {
+  gemini: {
+    url: "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+    auth: key => ({ "x-goog-api-key": key }),
+    // Only Gemini chat models: Gemma rejects system instructions, TTS/image/embedding models cannot chat
+    toModels: data => [{ id: "gemini-flash-latest", name: "Gemini Flash (en güncel)" }].concat(data.models
+      .map(m => ({ id: m.name.replace(/^models\//, ""), name: m.displayName || m.name, methods: m.supportedGenerationMethods || [] }))
+      .filter(m => m.id.startsWith("gemini") && m.id !== "gemini-flash-latest" && m.methods.includes("generateContent"))
+      .filter(m => !/tts|image|embed|audio|live/i.test(m.id))
+      .map(({ id, name }) => ({ id, name })))
+  },
   openrouter: {
     url: "https://openrouter.ai/api/v1/models",
     toModels: data => data.data
@@ -69,6 +79,8 @@ document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.local.get({
     provider: "gemini",
     geminiApiKey: "",
+    geminiModel: "gemini-flash-latest",
+    geminiModelsList: [],
     groqApiKey: "",
     groqModel: "llama-3.3-70b-versatile",
     openrouterApiKey: "",
@@ -111,7 +123,8 @@ document.addEventListener("DOMContentLoaded", () => {
       btn.textContent = "Yükleniyor...";
       btn.disabled = true;
       try {
-        const response = await fetch(source.url, { headers: { "Authorization": `Bearer ${key}` } });
+        const headers = source.auth ? source.auth(key) : { "Authorization": `Bearer ${key}` };
+        const response = await fetch(source.url, { headers });
         if (!response.ok) throw new Error("Modeller alınamadı. API anahtarını kontrol edin.");
         const models = source.toModels(await response.json()).sort((a, b) => a.name.localeCompare(b.name));
         if (models.length === 0) throw new Error("Kullanılabilir model bulunamadı.");
@@ -148,6 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const settings = {
       provider: providerSelect.value,
+      geminiModel: $("gemini-model").value,
       groqModel: $("groq-model").value,
       openrouterModel: $("openrouter-model").value,
       openrouterFreeOnly: freeOnly.checked,
