@@ -1,0 +1,56 @@
+# Bump "version" in manifest.json and push to main: the add-on is signed on AMO (unlisted),
+# published as a GitHub release, and installed copies pick it up through update_url.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [manifest.json]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: v
+        run: |
+          VERSION=$(jq -r .version manifest.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "v$VERSION already released, skipping (bump the version to publish)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sign on AMO (unlisted)
+        if: steps.v.outputs.skip != 'true'
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        run: |
+          if [ -z "$WEB_EXT_API_KEY" ] || [ -z "$WEB_EXT_API_SECRET" ]; then
+            echo "::error::AMO_JWT_ISSUER / AMO_JWT_SECRET repo secrets are not set"; exit 1
+          fi
+          npx --yes web-ext@10.8.0 sign --channel=unlisted --artifacts-dir=dist \
+            --ignore-files README.md package.json ".github/**" dist
+          mv dist/*.xpi "dist/zen-ai-summarizer-${{ steps.v.outputs.version }}.xpi"
+
+      - name: Publish release
+        if: steps.v.outputs.skip != 'true'
+        run: |
+          VERSION=${{ steps.v.outputs.version }}
+          ID=$(jq -r .browser_specific_settings.gecko.id manifest.json)
+          URL="https://github.com/${{ github.repository }}/releases/download/v$VERSION/zen-ai-summarizer-$VERSION.xpi"
+          jq -n --arg id "$ID" --arg v "$VERSION" --arg url "$URL" \
+            '{addons: {($id): {updates: [{version: $v, update_link: $url}]}}}' > dist/updates.json
+          gh release create "v$VERSION" "dist/zen-ai-summarizer-$VERSION.xpi" dist/updates.json \
+            --title "v$VERSION" --generate-notes --latest

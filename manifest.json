@@ -48,7 +48,8 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "zen-ai-summarizer@antigravity.ai",
-      "strict_min_version": "109.0",
+      "strict_min_version": "140.0",
+      "update_url": "https://github.com/thebanri/firefox-ai-summarizer/releases/latest/download/updates.json",
       "data_collection_permissions": {
         "required": ["none"]
       }

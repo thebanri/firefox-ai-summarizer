@@ -15,6 +15,14 @@ Firefox Browser (veya diğer Firefox tabanlı tarayıcılar) için geliştirilmi
 
 ## Kurulum ve Çalıştırma
 
+### İmzalı sürüm (otomatik güncellenir)
+
+[Son sürümün](https://github.com/thebanri/firefox-ai-summarizer/releases/latest) `.xpi` dosyasını Firefox'ta açıp kurun. Yeni sürümler Firefox tarafından otomatik kurulur (günde bir kontrol; hemen almak için `about:addons` → ⚙️ → **Güncellemeleri Denetle**).
+
+**Yeni sürüm yayınlamak:** `manifest.json` içindeki `version` değerini artırıp `main`'e push edin. GitHub Actions eklentiyi AMO'da (unlisted) imzalatır ve Release olarak yayınlar. Repo ayarlarında `AMO_JWT_ISSUER` ve `AMO_JWT_SECRET` secret'ları tanımlı olmalıdır ([AMO API anahtarları](https://addons.mozilla.org/developers/addon/api/key/)).
+
+### Geliştirme (geçici yükleme)
+
 1. Firefox Browser'da adres satırına `about:debugging` yazıp Enter'a basın.
 2. Sol menüden **"This Firefox"** seçeneğine gidin.
 3. **"Load Temporary Add-on..."** butonuna tıklayın.
