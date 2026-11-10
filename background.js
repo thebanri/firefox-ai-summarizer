@@ -64,7 +64,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === "chat_with_page") {
-    requestChat(request.text, request.history, request.message)
+    requestChat(request.text, request.history, request.message, request.summary)
       .then(reply => {
         sendResponse({ success: true, reply });
       })
@@ -406,7 +406,7 @@ function buildPrompt(language, detailLevel, pageTitle) {
 6. Reklamları ve ilgisiz metinleri göz ardı et, tamamen teknik doğruluğa ve önemli detaylara odaklan.`;
 }
 
-async function requestChat(pageText, history, userMessage) {
+async function requestChat(pageText, history, userMessage, summary) {
   const settings = await chrome.storage.local.get(SETTINGS_DEFAULTS);
   const systemPrompt = `Sen profesyonel, akıcı ve doğal konuşan bir yapay zeka asistanısın. Görevin, kullanıcının bulunduğu web sayfası hakkında sorularını cevaplamak. Cevaplarını kesinlikle hatasız, doğal ve akıcı bir "${settings.language}" dilinde ver. 
 
@@ -422,11 +422,17 @@ Aşağıdaki metin şu anda kullanıcının bulunduğu sayfanın içeriğidir (B
 ---
 ${pageText}
 ---`;
+  const summaryContext = summary?.text ? `
+
+Kullanıcı sohbetten önce şu özeti okudu (Kaynak: "${summary.title}" - ${summary.url}). Kullanıcı "özet", "yukarıdaki madde" gibi ifadelerle buna atıfta bulunabilir; soruları cevaplarken bu özeti de dikkate al:
+---
+${summary.text}
+---` : "";
 
   const messages = (history || []).map(msg => ({
     role: msg.role === "user" ? "user" : "assistant",
     content: msg.content
   }));
   messages.push({ role: "user", content: userMessage });
-  return callAI(systemPrompt, messages, { webSearch: true });
+  return callAI(systemPrompt + summaryContext, messages, { webSearch: true });
 }

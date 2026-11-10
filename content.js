@@ -884,7 +884,8 @@ function createOverlay() {
       action: "chat_with_page",
       text: currentPageText,
       history: chatHistory.slice(-10),
-      message: text
+      message: text,
+      summary: lastSummary
     }, (response) => {
       const typingEl = shadowRoot.getElementById(typingId);
       if (typingEl) typingEl.remove();
@@ -956,6 +957,7 @@ let chatHistory = [];
 let currentPageText = "";
 let isChatLoaded = false;
 let lastSelectedText = "";
+let lastSummary = null; // { title, url, text } of the summary last shown, passed to chat as context
 
 function getChatKey() {
   return "zen_chat_" + window.location.hostname + window.location.pathname;
@@ -1354,6 +1356,7 @@ function startPageSummarization() {
         return;
       }
       if (response.success) {
+        lastSummary = { title: pageData.title, url: pageData.url, text: response.summary };
         const summaryHtml = parseMarkdown(response.summary);
         displayResult({
           title: pageData.title,
@@ -1383,6 +1386,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "url_changed") {
     chatHistory = [];
     currentPageText = "";
+    lastSummary = null;
     isChatLoaded = false;
     
     if (shadowRoot) {
@@ -1414,6 +1418,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === "summarize_link_success") {
     // Successfully summarized the link content
+    lastSummary = { title: request.title, url: request.url, text: request.summary };
     displayResult({
       title: request.title,
       url: request.url,
