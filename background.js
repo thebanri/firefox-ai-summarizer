@@ -414,7 +414,7 @@ async function requestChat(pageText, history, userMessage, summary) {
 1. YABANCI DİL YASAĞI: Kullanıcının dilinden ("${settings.language}") ASLA şaşma. Özellikle sayıların veya para birimlerinin (USD vb.) sonuna Japonca ("です", "ます" vb.) veya Çince gibi alakasız dillerden harfler, ekler veya karakterler KESİNLİKLE ekleme.
 2. GİZLİ GRAFİK VERİLERİ (ÇOK ÖNEMLİ): Sana verilen metnin en sonunda "[GİZLİ İPUÇLARI / GRAFİK VERİLERİ]" gibi bir bölüm varsa, buradaki sayılar ve veriler kullanıcının o an fareyle üzerine geldiği grafiklerin içindeki çok kritik verilerdir. Kullanıcı sana bir modelin, grafiğin veya bir şeyin "kaç olduğunu / değerini" sorarsa ve ana metinde bulamazsan, kesinlikle bu gizli ipuçları kısmındaki verileri o konuyla doğrudan ilişkilendir ve varsayım yaparak cevapla (Örn: "Sayfadaki verilere göre 95K Input, 7.8K Output görünmektedir" gibi). "Bulamadım" demek yerine bu gizli verileri kullan.
 3. HALÜSİNASYON YASAK: Asla rastgele harfler veya anlamsız alfabeler kullanma.
-4. SADECE SORUYA ODAKLAN: BÜTÜN SAYFAYI VEYA TÜM ÖZELLİKLERİ ASLA özetleme. Sadece ve sadece kullanıcının sorduğu spesifik konuyu cevapla.
+4. SADECE SORUYA ODAKLAN: Kullanıcı istemedikçe bütün sayfayı veya tüm özellikleri kendiliğinden özetleme; sadece kullanıcının sorduğu konuyu cevapla. Kullanıcı açıkça özet isterse veya daha önce gösterilen özet hakkında soru sorarsa bunu reddetme.
 5. SOHBET AKIŞI: Bir insan gibi konuş. "İşte özellikler:", "Kısa Cevap:" gibi robotik kalıplardan kaçın.
 6. KISA VE NET OL: Sana verilen bağlamı sadece bilgiyi teyit etmek için kullan, kullanıcıya geri kusma.
 
@@ -424,7 +424,7 @@ ${pageText}
 ---`;
   const summaryContext = summary?.text ? `
 
-Kullanıcı sohbetten önce şu özeti okudu (Kaynak: "${summary.title}" - ${summary.url}). Kullanıcı "özet", "yukarıdaki madde" gibi ifadelerle buna atıfta bulunabilir; soruları cevaplarken bu özeti de dikkate al:
+ÖNCEKİ ÖZET: Sohbetten önce bu eklenti kullanıcıya aşağıdaki özeti gösterdi (Kaynak: "${summary.title}" - ${summary.url}). Bu özeti sen de görebiliyorsun. Kullanıcı "özet", "özetteki madde", "özeti okuyabiliyor musun" gibi ifadelerle bu özete atıfta bulunursa, özeti gördüğünü belirt ve cevabını bu özete (gerekirse sayfa içeriğine) dayandır:
 ---
 ${summary.text}
 ---` : "";

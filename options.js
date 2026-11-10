@@ -1,6 +1,7 @@
 // Zen AI Summarizer Options Script
 
 const PROVIDERS = ["gemini", "groq", "openrouter", "nvidia"];
+const FREE_SUFFIX = " (Ücretsiz)";
 
 // Providers whose model list is fetched from their API
 const MODEL_SOURCES = {
@@ -11,7 +12,7 @@ const MODEL_SOURCES = {
       .filter(m => !m.architecture?.output_modalities || m.architecture.output_modalities.includes("text"))
       .map(m => {
         const free = m.pricing?.prompt === "0" && m.pricing?.completion === "0";
-        return { id: m.id, name: free ? `${m.name} (Ücretsiz)` : m.name };
+        return { id: m.id, name: free ? m.name + FREE_SUFFIX : m.name };
       })
   },
   nvidia: {
@@ -43,7 +44,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   providerSelect.addEventListener("change", updateUI);
 
+  const freeOnly = $("openrouter-free-only");
+  const modelLists = {}; // full fetched lists, so the free-only filter can be toggled back off
+
   function populateModels(provider, models, selectedModel) {
+    modelLists[provider] = models;
+    if (provider === "openrouter" && freeOnly.checked) {
+      models = models.filter(m => m.name.endsWith(FREE_SUFFIX));
+    }
     const select = $(`${provider}-model`);
     select.innerHTML = "";
     models.forEach(model => {
@@ -66,6 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
     openrouterApiKey: "",
     openrouterModel: "",
     openrouterModelsList: [],
+    openrouterFreeOnly: false,
     nvidiaApiKey: "",
     nvidiaModel: "nvidia/nemotron-3-super-120b-a12b",
     nvidiaModelsList: [],
@@ -78,6 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
     PROVIDERS.forEach(p => { $(`${p}-key`).value = items[`${p}ApiKey`]; });
     $("groq-model").value = items.groqModel;
     $("nvidia-model").value = items.nvidiaModel;
+    freeOnly.checked = items.openrouterFreeOnly;
     Object.keys(MODEL_SOURCES).forEach(p => {
       if (items[`${p}ModelsList`].length > 0) {
         populateModels(p, items[`${p}ModelsList`], items[`${p}Model`]);
@@ -117,6 +127,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  freeOnly.addEventListener("change", () => {
+    if (modelLists.openrouter) populateModels("openrouter", modelLists.openrouter, $("openrouter-model").value);
+  });
+
   // Toggle API Key visibility
   PROVIDERS.forEach(p => {
     const input = $(`${p}-key`);
@@ -136,6 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
       provider: providerSelect.value,
       groqModel: $("groq-model").value,
       openrouterModel: $("openrouter-model").value,
+      openrouterFreeOnly: freeOnly.checked,
       nvidiaModel: $("nvidia-model").value,
       language: languageSelect.value,
       detailLevel: detailSelect.value,
