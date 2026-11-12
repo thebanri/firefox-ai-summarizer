@@ -242,7 +242,8 @@ async function readApiError(response, providerName) {
 }
 
 // Single entry point for every AI request: messages are [{ role: "user"|"assistant", content }]
-async function callAI(system, messages, { maxTokens = 4096, webSearch = false } = {}) {
+// Reasoning models (most free OpenRouter ones, Nemotron, gpt-oss) spend much of this on thinking
+async function callAI(system, messages, { maxTokens = 16384, webSearch = false } = {}) {
   const settings = await chrome.storage.local.get(SETTINGS_DEFAULTS);
   const provider = settings.provider || "gemini";
   console.log(`[Zen AI Summarizer] Yapay zeka sağlayıcısı kullanılıyor: ${provider.toUpperCase()}`);
